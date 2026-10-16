@@ -34,7 +34,18 @@ test('cover + spec sheet + quotation; the quotation is left out without prices',
   assert.equal(pageCount(await buildPdf(bundle(list), { prices: false })), 2);
 });
 
-test('more than six fixtures continue on a second spec sheet', async () => {
-  const list = Array.from({ length: 8 }, (_, i) => fx({ id: i + 1, code: `LT${i + 1}` }));
-  assert.equal(pageCount(await buildPdf(bundle(list), { prices: false })), 3);
+test('spec sheets hold 12 items a page; the 13th continues on a second sheet', async () => {
+  const many = (n: number) => Array.from({ length: n }, (_, i) => fx({ id: i + 1, code: `L-${String(i + 1).padStart(2, '0')}` }));
+  assert.equal(pageCount(await buildPdf(bundle(many(12)), { prices: false })), 2, 'cover + one spec sheet');
+  assert.equal(pageCount(await buildPdf(bundle(many(13)), { prices: false })), 3);
+});
+
+test('spec sheets group by category; three small categories share one page', async () => {
+  const list = [
+    ...[1, 2, 3, 4].map((i) => fx({ id: i, code: `F-0${i}`, cat: 'F' })),
+    ...[5, 6, 7, 8].map((i) => fx({ id: i, code: `L-0${i}`, cat: 'L' })),
+    ...[9, 10].map((i) => fx({ id: i, code: `S-0${i}`, cat: 'S' })),
+  ];
+  const pdf = await buildPdf(bundle(list), { prices: false });
+  assert.equal(pageCount(pdf), 2, 'three bands and three rows fit on one sheet');
 });

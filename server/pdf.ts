@@ -511,70 +511,119 @@ function wiringSheets(c: Ctx) {
   }
 }
 
+/**
+ * Item specification: compact cards, 4 per row and 3 rows, so always 12 items a page, in category order.
+ * Above every row, each category's cards in that row get a band (icon, code, name) that spans just those cards,
+ * so small categories share a row and stay grouped; "(ต่อ)" marks a category carried over from the row before.
+ */
 function specSheets(c: Ctx) {
   const { doc, b } = c;
   const q = quantities(b);
   const list = b.fixtures.slice().sort(byCategory(b));
   if (!list.length) return;
-  const cols = 3;
-  const rows = 2;
-  const gap = 16;
+  const cols = 4;
+  const rowsPerPage = 3;
+  const gap = 10;
+  const bandH = 24;
   const cw = (W - MX * 2 - gap * (cols - 1)) / cols;
-  const ch = (BOT - TOP - gap * (rows - 1)) / rows;
-  list.forEach((f, i) => {
-    const k = i % (cols * rows);
-    if (k === 0) newSheet(c, 'Item Specification', `${Math.floor(i / (cols * rows)) + 1}/${Math.ceil(list.length / (cols * rows))}`);
-    const x = MX + (k % cols) * (cw + gap);
-    const y = TOP + Math.floor(k / cols) * (ch + gap);
-    doc.rect(x, y, cw, ch).fill(BRAND.white);
-    doc.rect(x, y, cw, ch).lineWidth(0.6).strokeColor(RULE).stroke();
-    // head: category icon, code in display type, Charcoal rule underneath
-    const cat = categoryOf(b.categories, f.cat);
-    doc.rect(x, y, cw, 34).fill(SOFT);
-    doc.rect(x, y + 34, cw, 1.5).fill(INK);
-    drawCatIcon(doc, cat.icon, x + 10, y + 7, 20);
-    icon(doc, f, x + 44, y + 17, 9);
-    txt(doc, f.code, x + 60, y + 7, { ...T.headline, size: 17, color: BRAND.primaryText });
-    const n = q[f.id]?.total ?? 0;
-    txt(doc, `${qtyText(n)} ${unitTh(f.unit)}`, x + cw - 110, y + 10, { size: 13, w: 600, align: 'right', width: 100 });
-    // images
-    const iy = y + 42;
-    const ih = 120;
-    const iw = (cw - 30) / 2;
-    for (const [j, file] of [f.photo_file, f.drawing_file].entries()) {
-      const bx = x + 10 + j * (iw + 10);
-      doc.rect(bx, iy, iw, ih).lineWidth(0.4).strokeColor(RULE).stroke();
-      if (file && fs.existsSync(uploadPath(file))) doc.image(uploadPath(file), bx + 3, iy + 3, { fit: [iw - 6, ih - 6], align: 'center', valign: 'center' });
-      else txt(doc, j === 0 ? 'รูปสินค้า' : 'แบบ / Drawing', bx, iy + ih / 2 - 6, { size: 9, color: GREY, align: 'center', width: iw });
+  const ch = 190;
+  const rowH = bandH + 4 + ch + gap; // 3 rows fit between TOP and BOT
+  const perPage = cols * rowsPerPage;
+  const count = new Map<string, number>();
+  for (const f of list) count.set(f.cat, (count.get(f.cat) ?? 0) + 1);
+
+  for (let p = 0; p * perPage < list.length; p++) {
+    const page = list.slice(p * perPage, (p + 1) * perPage);
+    const onPage = [...new Set(page.map((f) => f.cat))].map((k) => categoryOf(b.categories, k));
+    newSheet(c, 'Item Specification', onPage.map((k) => k.prefix).join(' · '));
+    for (let r = 0; r * cols < page.length; r++) {
+      const row = page.slice(r * cols, (r + 1) * cols);
+      const y = TOP + r * rowH;
+      // runs of the same category within this row
+      let start = 0;
+      while (start < row.length) {
+        let end = start;
+        while (end + 1 < row.length && row[end + 1].cat === row[start].cat) end++;
+        const first = row[start];
+        const prev = start === 0 ? (r > 0 ? page[r * cols - 1] : list[p * perPage - 1]) : row[start - 1];
+        const carried = !!prev && prev.cat === first.cat;
+        const bx = MX + start * (cw + gap);
+        const bw = (end - start + 1) * cw + (end - start) * gap;
+        band(c, categoryOf(b.categories, first.cat), bx, y, bw, bandH, carried, count.get(first.cat) ?? 0);
+        start = end + 1;
+      }
+      row.forEach((f, k) => card(c, f, MX + k * (cw + gap), y + bandH + 4, cw, ch, q[f.id]?.total ?? 0));
     }
-    // details
-    let ty = iy + ih + 12;
-    const kv: [string, string][] = [
-      ['หมวด', cat.name_th],
-      ['ชื่อ', f.name],
-      ['รุ่น', f.model],
-      ['ขนาด', f.size],
-      ['ห้อง / พื้นที่', f.room],
-    ];
-    if (isLighting(f)) {
-      kv.push(
-        ['ขั้ว / หลอด', [f.socket, f.bulbs ? `${f.bulbs} หลอด` : ''].filter(Boolean).join(' · ')],
-        ['กำลังไฟ', f.watt_per_lamp != null ? `${f.watt_per_lamp} W${f.unit === 'm' ? '/m' : ' / หลอด'}${unitWatt(f) && f.unit !== 'm' ? `  (รวม ${qtyText(unitWatt(f))} W)` : ''}` : f.watt_total != null ? `${f.watt_total} W` : ''],
-        ['อุณหภูมิสี / IP', [f.kelvin ? `${f.kelvin}K` : '', f.ip].filter(Boolean).join(' · ')],
-      );
-    }
-    kv.push(['สี / ผิว', f.finish], ['ซัพพลายเออร์', f.supplier]);
-    if (c.prices) kv.push(['ราคา', f.price != null ? `${money(f.price)} บาท / ${unitTh(f.unit)}` : 'รอราคา']);
-    if (f.note) kv.push(['หมายเหตุ', f.note]);
-    for (const [k2, v] of kv) {
-      if (!v) continue;
-      const ls = wrap(doc, v, cw - 120, { size: 9.5, w: 500 }).slice(0, 2);
-      if (ty + ls.length * 12 > y + ch - 4) break;
-      txt(doc, k2, x + 12, ty, { size: 9, color: GREY });
-      ls.forEach((ln, idx) => txt(doc, ln, x + 104, ty + idx * 12, { size: 9.5, w: 500 }));
-      ty += ls.length * 12 + 3;
-    }
-  });
+  }
+}
+
+/** Category band above a run of cards: icon, code, Thai and English name, item count when there is room. */
+function band(c: Ctx, cat: ReturnType<typeof categoryOf>, x: number, y: number, w: number, h: number, carried: boolean, n: number) {
+  const { doc } = c;
+  doc.rect(x, y, w, h).fill(SOFT);
+  doc.rect(x, y + h - 1.5, w, 1.5).fill(INK);
+  drawCatIcon(doc, cat.icon, x + 7, y + 4, 16);
+  const code: TOpts = { ...T.headline, size: 11.5, color: BRAND.primaryText };
+  txt(doc, cat.prefix, x + 30, y + 5, code);
+  const nx = x + 36 + tw(doc, cat.prefix, code);
+  const right = `${n} รายการ`;
+  const rw = tw(doc, right, { size: 9 }) + 10;
+  const name = `${cat.name_th}${cat.name_en ? `  ${cat.name_en}` : ''}${carried ? '  (ต่อ)' : ''}`;
+  const room = x + w - nx - (w > 300 ? rw : 6);
+  txt(doc, clip(doc, name, room, { size: 10.5, w: 600 }), nx, y + 5.5, { size: 10.5, w: 600 });
+  if (w > 300) txt(doc, right, x + w - rw, y + 6.5, { size: 9, color: GREY, align: 'right', width: rw - 6 });
+}
+
+/** One compact spec card. */
+function card(c: Ctx, f: Fixture, x: number, y: number, cw: number, ch: number, qty: number) {
+  const { doc } = c;
+  doc.rect(x, y, cw, ch).fill(BRAND.white);
+  doc.rect(x, y, cw, ch).lineWidth(0.6).strokeColor(RULE).stroke();
+  // head: plan symbol, code, quantity
+  icon(doc, f, x + 14, y + 12, 8);
+  txt(doc, f.code, x + 28, y + 4, { ...T.headline, size: 13, color: BRAND.primaryText });
+  txt(doc, `${qtyText(qty)} ${unitTh(f.unit)}`, x + cw - 90, y + 6, { size: 10.5, w: 600, align: 'right', width: 82 });
+  doc.rect(x, y + 24, cw, 1).fill(INK);
+  // photo and drawing side by side
+  const iy = y + 30;
+  const ih = 78;
+  const iw = (cw - 24) / 2;
+  for (const [j, file] of [f.photo_file, f.drawing_file].entries()) {
+    const bx = x + 8 + j * (iw + 8);
+    doc.rect(bx, iy, iw, ih).lineWidth(0.4).strokeColor(RULE).stroke();
+    if (file && fs.existsSync(uploadPath(file))) doc.image(uploadPath(file), bx + 2, iy + 2, { fit: [iw - 4, ih - 4], align: 'center', valign: 'center' });
+    else txt(doc, j === 0 ? 'รูปสินค้า' : 'แบบ / Drawing', bx, iy + ih / 2 - 5, { size: 8, color: GREY, align: 'center', width: iw });
+  }
+  // details: name first, then what matters for this category
+  let ty = iy + ih + 7;
+  if (f.name) {
+    txt(doc, clip(doc, f.name, cw - 16, { size: 9.5, w: 600 }), x + 8, ty, { size: 9.5, w: 600 });
+    ty += 13;
+  }
+  const kv: [string, string][] = [
+    ['รุ่น', f.model],
+    ['ขนาด', f.size],
+    ['ห้อง', f.room],
+  ];
+  if (isLighting(f)) {
+    kv.push(
+      ['ขั้ว / หลอด', [f.socket, f.bulbs ? `${f.bulbs} หลอด` : ''].filter(Boolean).join(' · ')],
+      ['กำลังไฟ', f.watt_per_lamp != null ? `${f.watt_per_lamp} W${f.unit === 'm' ? '/m' : ' / หลอด'}${unitWatt(f) && f.unit !== 'm' ? ` (รวม ${qtyText(unitWatt(f))} W)` : ''}` : f.watt_total != null ? `${f.watt_total} W` : ''],
+      ['K / IP', [f.kelvin ? `${f.kelvin}K` : '', f.ip].filter(Boolean).join(' · ')],
+    );
+  }
+  kv.push(['สี / ผิว', f.finish], ['ซัพพลายเออร์', f.supplier]);
+  if (c.prices) kv.push(['ราคา', f.price != null ? `${money(f.price)} บาท / ${unitTh(f.unit)}` : 'รอราคา']);
+  if (f.note) kv.push(['หมายเหตุ', f.note]);
+  const lw = 64;
+  for (const [k, v] of kv) {
+    if (!v) continue;
+    const ls = wrap(doc, v, cw - lw - 14, { size: 8.5, w: 500 }).slice(0, 2);
+    if (ty + ls.length * 10.5 > y + ch - 4) break;
+    txt(doc, k, x + 8, ty, { size: 8, color: GREY });
+    ls.forEach((ln, idx) => txt(doc, ln, x + 8 + lw, ty + idx * 10.5, { size: 8.5, w: 500 }));
+    ty += ls.length * 10.5 + 2;
+  }
 }
 
 interface Col {
