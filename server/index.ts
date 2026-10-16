@@ -7,12 +7,16 @@ import multipart from '@fastify/multipart';
 import fstatic from '@fastify/static';
 import { SESSION_SECRET } from './auth';
 import { registerRoutes } from './routes';
+import { DATA_CREATED, DATA_DIR, DATA_MOUNTED } from './db';
+
+const STARTED = new Date().toISOString();
 
 export async function build() {
   const app = Fastify({ logger: process.env.NODE_ENV !== 'test', bodyLimit: 10 * 1024 * 1024 });
   await app.register(cookie, { secret: SESSION_SECRET });
   await app.register(multipart, { limits: { fileSize: 40 * 1024 * 1024, files: 1 } });
-  app.get('/healthz', async () => ({ ok: true }));
+  // storage tells whether data survives a redeploy: mounted = on a volume; dataCreated stays the same across deploys when it is
+  app.get('/healthz', async () => ({ ok: true, startedAt: STARTED, storage: { dir: DATA_DIR, mounted: DATA_MOUNTED, dataCreated: DATA_CREATED } }));
   await registerRoutes(app);
 
   const dist = path.resolve('web/dist');
