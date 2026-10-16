@@ -6,7 +6,7 @@ import PDFDocument from 'pdfkit';
 import { boq, byCode, isLighting, issues as _issues, lampText, lineLengthM, loadSchedule, quantities, unitWatt } from '../shared/calc';
 import { BRAND, TYPE, WIRE_COLORS as WIRE, onColor } from '../shared/brand';
 import { ICON_PATHS, MARK_SHAPES, WORDMARK_PATH } from '../shared/brand-assets';
-import { categoryOf, unitTh } from '../shared/categories';
+import { categoryOf, sortCategories, unitTh } from '../shared/categories';
 import { COLORS, LABEL_COLORS, linearLengthPx, baseRadius, isLineSymbol, lineStyle, pointSymbol, pointsAlong, polylineLength, primToSvg, symbolMeta, wiringPath } from '../shared/symbols';
 import type { Bundle, Fixture, Floor } from '../shared/types';
 import { planImage, uploadPath } from './files';
@@ -289,6 +289,12 @@ function footers(c: Ctx) {
   }
 }
 
+/** Items in category order (guideline order, then the studio's own), then by code — same order as the BOQ. */
+function byCategory(b: Bundle) {
+  const rank = new Map(sortCategories(b.categories).map((c, i) => [c.prefix, i]));
+  return (a: Fixture, z: Fixture) => (rank.get(a.cat) ?? 999) - (rank.get(z.cat) ?? 999) || a.cat.localeCompare(z.cat) || byCode(a, z);
+}
+
 /* ---------- symbols ---------- */
 function drawPrims(doc: Doc, prims: ReturnType<typeof pointSymbol>, color: string, u: number) {
   for (const p of prims) {
@@ -446,7 +452,7 @@ function legend(c: Ctx, x: number, y: number, w: number, floor: Floor) {
   const q = quantities(b);
   const fx = b.fixtures
     .filter((f) => (q[f.id]?.perFloor[floor.id] ?? 0) > 0)
-    .sort(byCode);
+    .sort(byCategory(b));
   txt(doc, 'LEGEND', x, y, { ...T.label, size: 9 });
   doc.moveTo(x, y + 14).lineTo(x + w, y + 14).lineWidth(0.6).strokeColor(INK).stroke();
   let cy = y + 22;
@@ -505,7 +511,7 @@ function wiringSheets(c: Ctx) {
 function specSheets(c: Ctx) {
   const { doc, b } = c;
   const q = quantities(b);
-  const list = b.fixtures.slice().sort(byCode);
+  const list = b.fixtures.slice().sort(byCategory(b));
   if (!list.length) return;
   const cols = 3;
   const rows = 2;

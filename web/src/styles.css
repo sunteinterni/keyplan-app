@@ -193,3 +193,8 @@ select.statussel { height: 34px; font-size: 13px; padding: 0 8px; }
 @media (max-width: 900px) { .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; } .sidebar { flex-direction: row; flex-wrap: wrap; align-items: center; border-right: 0; border-bottom: var(--line); padding: 10px; } .sidebar .brand { padding: 0 8px 0 0; } .sidebar .tagline, .sidebar .foot .who { display: none; } .sidebar .foot { margin: 0 0 0 auto; border: 0; padding: 0; flex-direction: row; } .split { flex-direction: column; } .side { width: auto; border-right: 0; border-bottom: var(--line); max-height: 40vh; } .page { padding: 18px; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 @media print { .sidebar, .ptabs, .floorbar, .tools, .inspector { display: none !important; } .app { display: block; } body { background: #fff; } }
+
+/* dense tables and narrow panels: codes never wrap, inputs inside tables are compact (rows stay ≥ 44 px) */
+.chip, .codetag, .li .code { white-space: nowrap; }
+.tbl input, .tbl select { height: 36px; }
+.side > .row.between { flex-wrap: wrap; }
