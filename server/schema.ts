@@ -3,7 +3,7 @@
 import type Database from 'better-sqlite3';
 import { BUILTIN_CATEGORIES } from '../shared/categories';
 
-export const SCHEMA_VERSION = 8;
+export const SCHEMA_VERSION = 9;
 
 const q = (s: string) => `'${s.replace(/'/g, "''")}'`;
 
@@ -140,6 +140,8 @@ const migrations: Record<number, string> = {
       ALTER TABLE moodboard_images ADD COLUMN crop_w REAL NOT NULL DEFAULT 1;
       ALTER TABLE moodboard_images ADD COLUMN crop_h REAL NOT NULL DEFAULT 1;
       ALTER TABLE moodboard_images ADD COLUMN cutout TEXT;`,
+  // the Thai line under the project name on the cover (e.g. "บ้านริมน้ำ งานปรับปรุงภายใน")
+  9: `ALTER TABLE projects ADD COLUMN subtitle TEXT NOT NULL DEFAULT '';`,
 };
 
 /** Brings any database (new or older version) up to SCHEMA_VERSION (or an older target, for tests of the upgrade path). */

@@ -35,6 +35,7 @@ export interface User {
 export interface Project {
   id: number;
   name: string;
+  subtitle: string; // Thai line under the name on the cover
   client: string;
   location: string;
   project_no: string;

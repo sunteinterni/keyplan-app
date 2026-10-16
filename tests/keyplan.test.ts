@@ -170,7 +170,7 @@ test('PDF and Excel exports work for a mixed project', async () => {
 test('VAT and net total match the workbook sample (43,834 → 3,068.38 → 46,902.38)', () => {
   const b: Bundle = {
     categories: [], retired: [], moodboards: [],
-    project: { id: 1, name: 'T', client: '', location: '', project_no: '', designer: '', prepared_by: '', revision: '', doc_date: '2026-10-16', vat_rate: 7, voltage: 220, pf: 1, discount: 0, install_fee: 0, note: '', created_at: '', updated_at: '' },
+    project: { id: 1, name: 'T', subtitle: '', client: '', location: '', project_no: '', designer: '', prepared_by: '', revision: '', doc_date: '2026-10-16', vat_rate: 7, voltage: 220, pf: 1, discount: 0, install_fee: 0, note: '', created_at: '', updated_at: '' },
     floors: [],
     fixtures: [{
       id: 1, project_id: 1, code: 'F-01', cat: 'F', room: '', size: '', qty_manual: 1, status: 'draft', mark_size: 'M', model: '', name: 'x', finish: '', socket: '', bulbs: null, watt_per_lamp: null, watt_total: null, kelvin: null, ip: '',

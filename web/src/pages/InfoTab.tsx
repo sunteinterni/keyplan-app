@@ -18,7 +18,8 @@ export function InfoTab({ bundle, reload, toast }: TabProps) {
     <main className="page narrow">
       <div className="pagehead"><div><div className="eyebrow">PRJ · Project</div><h1>ข้อมูลโครงการ</h1><p className="sub">แสดงบนหน้าปก หัวกระดาษ และส่วนท้ายของ PDF ทุกหน้า</p></div></div>
       <section className="card form">
-        <PField p={p} save={save} k="name" label="ชื่อโครงการ" wide />
+        <PField p={p} save={save} k="name" label="ชื่อโครงการ (ตัวใหญ่บนหน้าปก เช่น Riverside Residence)" wide />
+        <PField p={p} save={save} k="subtitle" label="ชื่อรอง / คำอธิบายภาษาไทย (ใต้ชื่อบนหน้าปก เช่น บ้านริมน้ำ งานปรับปรุงภายใน)" wide />
         <PField p={p} save={save} k="client" label="ลูกค้า / เจ้าของโครงการ" />
         <PField p={p} save={save} k="location" label="สถานที่" />
         <PField p={p} save={save} k="project_no" label="เลขที่โครงการ (Project No.)" />

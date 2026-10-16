@@ -201,76 +201,77 @@ function newSheet(c: Ctx, title: string, sub = ''): void {
 }
 
 /** Cover page (page 1): drawn last so it can list every sheet. */
+/** "14 Oct 2026" from YYYY-MM-DD (cover date, as in the presentation template). */
+const longDate = (iso: string) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  if (!m) return iso;
+  return `${Number(m[3])} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][Number(m[2]) - 1]} ${m[1]}`;
+};
+/** "REV 01" for a numeric revision, "REV A" for a letter. */
+const revLabel = (r: string) => (!r ? '' : /^\d+$/.test(r.trim()) ? `REV ${r.trim().padStart(2, '0')}` : `REV ${r.trim().toUpperCase()}`);
+
+/** Hand-drawn wave under a word, Terracotta (the cover's one accent). */
+function wave(doc: Doc, x: number, y: number, w: number, amp = 2.6, period = 22) {
+  let d = `M${x} ${y}`;
+  for (let i = 0; i * period < w; i++) {
+    const x0 = x + i * period;
+    const x1 = Math.min(x + w, x0 + period);
+    const dir = i % 2 === 0 ? -1 : 1;
+    d += ` Q${(x0 + x1) / 2} ${y + dir * amp * 2} ${x1} ${y}`;
+  }
+  doc.save().path(d).lineWidth(3.2).lineCap('round').lineJoin('round').strokeColor(BRAND.primary).stroke().restore();
+}
+
+/**
+ * Cover (page 1), the KEYPLAN presentation template: logo, "PROJECT PRESENTATION · REV", the project name large,
+ * the Thai subtitle with a Terracotta wave under its first word, a rule, then client / site / date / designer.
+ */
 function coverPage(c: Ctx) {
   const { doc, b } = c;
   const p = b.project;
-  const L = 64;
+  const L = 56;
   doc.switchToPage(0);
   doc.rect(0, 0, W, H).fill(PAPER);
-  const PW = 330;
-  drawPattern(doc, W - PW, 0, PW, H);
-  doc.moveTo(W - PW, 0).lineTo(W - PW, H).lineWidth(1.5).strokeColor(INK).stroke();
-  drawLogo(doc, L, 60, 64);
-  txt(doc, 'PLAN  ·  PRICE  ·  YOUR HOME', L, 136, { ...T.label, size: 9 });
+  drawLogo(doc, L, 52, 76);
 
-  let y = 250;
-  txt(doc, 'FF&E SCHEDULE  ·  รายการวัสดุและครุภัณฑ์', L, y, { ...T.label, size: 10, color: BRAND.primaryText });
-  y += 26;
-  const big: TOpts = { ...T.display, size: 54 };
-  const lines = wrap(doc, p.name || 'Untitled', 420, big).slice(0, 2);
-  lines.forEach((ln, i) => txt(doc, ln, L, y + i * 66, big));
-  y += lines.length * 66 + 10;
-  txt(doc, 'แปลน รายการวัสดุ ราคา และสเปค สำหรับงานรีโนเวท', L, y, { size: 16, color: GREY });
+  const ruleW = 600;
+  let y = 262;
+  txt(doc, ['PROJECT PRESENTATION', revLabel(p.revision)].filter(Boolean).join(' · '), L, y, { mono: true, w: 500, size: 16, track: 0.02, color: BRAND.primaryText });
+  y += 40;
+  // the name breaks onto two lines like the template (a long name shrinks to stay within two lines)
+  let size = 92;
+  let lines = wrap(doc, p.name || 'Untitled', ruleW, { ...T.display, size });
+  while (lines.length > 2 && size > 56) lines = wrap(doc, p.name || 'Untitled', ruleW, { ...T.display, size: (size -= 6) });
+  const big: TOpts = { ...T.display, size };
+  lines.slice(0, 2).forEach((ln, i) => txt(doc, ln, L - size * 0.04, y + i * size * 0.98, big));
+  y += Math.min(2, lines.length) * size * 0.98 + 22;
 
-  // title block (as in the CI drawing title block)
+  if (p.subtitle) {
+    const sub: TOpts = { size: 36, w: 600 };
+    const text = clip(doc, p.subtitle, ruleW + 160, sub);
+    txt(doc, text, L, y, sub);
+    // the wave runs under the first word (Thai has no spaces inside a phrase, so up to the first space)
+    const first = text.split(/\s+/)[0] ?? text;
+    wave(doc, L, y + 52, Math.max(40, tw(doc, first, sub)));
+    y += 66;
+  }
+  doc.moveTo(L, y).lineTo(L + ruleW, y).lineWidth(1.4).strokeColor(GREY).stroke();
+  y += 30;
+
   const cells: [string, string][] = [
-    ['PROJECT NO.', p.project_no],
-    ['CLIENT', p.client],
-    ['LOCATION', p.location],
-    ['DATE / REV', [dmy(p.doc_date), p.revision && `Rev. ${p.revision}`].filter(Boolean).join('  ·  ')],
-    ['DESIGNER', p.designer],
-    ['PREPARED BY', p.prepared_by],
+    ['CLIENT / ลูกค้า', p.client],
+    ['SITE / สถานที่', p.location],
+    ['DATE / วันที่', longDate(p.doc_date)],
+    ['DESIGNER / ผู้ออกแบบ', p.designer],
   ];
-  const tbW = 560;
-  const cw = tbW / 3;
-  const chh = 58;
-  const ty = H - 64 - chh * 2;
-  doc.rect(L, ty, tbW, chh * 2).fill(BRAND.white);
+  const colW = 310;
   cells.forEach(([k, v], i) => {
-    const cx = L + (i % 3) * cw;
-    const cy = ty + Math.floor(i / 3) * chh;
-    doc.rect(cx, cy, cw, chh).lineWidth(0.8).strokeColor(INK).stroke();
-    txt(doc, k, cx + 12, cy + 11, { ...T.label, size: 7.5 });
-    const o: TOpts = { size: 12, w: 600 };
-    txt(doc, clip(doc, v || '–', cw - 24, o), cx + 12, cy + 29, o);
+    const cx = L + (i % 2) * colW;
+    const cy = y + Math.floor(i / 2) * 84;
+    txt(doc, k, cx, cy, { mono: true, size: 13.5, w: 400, track: 0.02, color: GREY });
+    const o: TOpts = { size: 18, w: 600 };
+    txt(doc, clip(doc, v || '–', colW - 24, o), cx, cy + 24, o);
   });
-
-  // sheet index; continuation pages ("2/3", "(ต่อ)") collapse into one row with a page range
-  const rows: { from: number; to: number; title: string; sub: string }[] = [];
-  c.sheets.forEach((sh, i) => {
-    const page = i + 2;
-    const last = rows[rows.length - 1];
-    if (last && last.title === sh.title && /^(\d+\/\d+|\(.*\))$/.test(sh.sub)) last.to = page;
-    else rows.push({ from: page, to: page, title: sh.title, sub: /^\d+\/\d+$/.test(sh.sub) ? '' : sh.sub });
-  });
-  const ix = W - PW - 40 - 300; // sheet index between the title and the pattern panel
-  let iy = 250;
-  txt(doc, 'SHEETS  ·  รายการแบบ', ix, iy, { ...T.label, size: 9 });
-  iy += 18;
-  doc.moveTo(ix, iy).lineTo(ix + 300, iy).lineWidth(0.8).strokeColor(INK).stroke();
-  iy += 10;
-  const maxRows = Math.floor((H - 64 - 130 - iy) / 24);
-  const pg = (n: number) => String(n).padStart(2, '0');
-  rows.slice(0, maxRows).forEach((r) => {
-    txt(doc, r.from === r.to ? pg(r.from) : `${pg(r.from)}–${pg(r.to)}`, ix, iy + 3, { size: 9.5, w: 500, mono: true, color: GREY });
-    const t: TOpts = { size: 12, w: 500, family: 'display' };
-    txt(doc, r.title, ix + 64, iy + 1, t);
-    const sx = ix + 74 + tw(doc, r.title, t);
-    if (r.sub) txt(doc, clip(doc, r.sub, ix + 300 - sx, { size: 10.5, color: GREY }), sx, iy + 3, { size: 10.5, color: GREY });
-    iy += 24;
-  });
-  if (rows.length > maxRows) txt(doc, `… และอีก ${rows.length - maxRows} รายการ`, ix + 64, iy, { size: 9.5, color: GREY });
-  txt(doc, 'Prepared with KEYPLAN', L, H - 40, { size: 8.5, color: GREY, mono: true });
 }
 
 function footers(c: Ctx) {

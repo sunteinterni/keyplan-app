@@ -12,7 +12,7 @@ const bundle = (fixtures: Fixture[] = []): Bundle => ({
   categories: [],
   retired: [],
   moodboards: [],
-  project: { id: 1, name: '[PLACEHOLDER] โครงการทดสอบ', client: '[PLACEHOLDER]', location: '', project_no: 'LT-0000', designer: '', prepared_by: '', revision: 'A', doc_date: '2026-10-04', vat_rate: 7, voltage: 220, pf: 1, discount: 0, install_fee: 0, note: '', created_at: '', updated_at: '' },
+  project: { id: 1, name: '[PLACEHOLDER] โครงการทดสอบ', subtitle: '', client: '[PLACEHOLDER]', location: '', project_no: 'LT-0000', designer: '', prepared_by: '', revision: 'A', doc_date: '2026-10-04', vat_rate: 7, voltage: 220, pf: 1, discount: 0, install_fee: 0, note: '', created_at: '', updated_at: '' },
   floors: [],
   fixtures,
   placements: [],

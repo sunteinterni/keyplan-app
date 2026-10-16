@@ -16,6 +16,7 @@ import { buildXlsx } from './xlsx';
 
 const PROJECT_RULES: Record<string, Rule> = {
   name: (v) => str(v) || 'โปรเจกต์ใหม่',
+  subtitle: (v) => str(v).slice(0, 120),
   client: str, location: str, project_no: str, designer: str, prepared_by: str, revision: str, note: str,
   doc_date: (v) => (/^\d{4}-\d{2}-\d{2}$/.test(str(v)) ? str(v) : new Date().toISOString().slice(0, 10)),
   vat_rate: (v) => num(v) ?? 7,
@@ -197,8 +198,8 @@ export function registerRoutes(app: FastifyInstance) {
       if (!src) throw bad('ไม่พบโปรเจกต์', 404);
       const tx = db.transaction(() => {
         const p = src.project;
-        const r = db.prepare(`INSERT INTO projects (name, client, location, project_no, designer, prepared_by, revision, doc_date, vat_rate, voltage, pf, discount, install_fee, note, created_by)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(`${p.name} (สำเนา)`, p.client, p.location, p.project_no, p.designer, p.prepared_by, p.revision, p.doc_date, p.vat_rate, p.voltage, p.pf, p.discount, p.install_fee, p.note, req.user!.id);
+        const r = db.prepare(`INSERT INTO projects (name, subtitle, client, location, project_no, designer, prepared_by, revision, doc_date, vat_rate, voltage, pf, discount, install_fee, note, created_by)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(`${p.name} (สำเนา)`, p.subtitle, p.client, p.location, p.project_no, p.designer, p.prepared_by, p.revision, p.doc_date, p.vat_rate, p.voltage, p.pf, p.discount, p.install_fee, p.note, req.user!.id);
         const nid = Number(r.lastInsertRowid);
         const fm = new Map<number, number>(), fx = new Map<number, number>(), cm = new Map<number, number>();
         for (const f of src.floors) fm.set(f.id, Number(db.prepare('INSERT INTO floors (project_id, name, sort, plan_file, plan_w, plan_h, mpp, symbol_scale, plan_gray, plan_opacity, plan_orig, plan_rot) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)').run(nid, f.name, f.sort, f.plan_file, f.plan_w, f.plan_h, f.mpp, f.symbol_scale, f.plan_gray, f.plan_opacity, f.plan_orig, f.plan_rot).lastInsertRowid));
