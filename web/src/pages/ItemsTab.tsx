@@ -99,7 +99,12 @@ export function ItemsTab({ bundle, reload, toast }: TabProps) {
         ) : (
           <>
             <LibraryStatus f={f} item={f.library_id != null ? libById.get(f.library_id) : undefined} loaded={!!lib.items} run={run} />
-            <ItemForm key={f.id} f={f} cats={cats} planQty={q[f.id]?.plan ?? 0} total={q[f.id]?.total ?? 0} setField={(k, v) => patch(f.id, k)(v)} run={run} onDeleted={() => setSel(null)} />
+            <ItemForm key={f.id} f={f} cats={cats} planQty={q[f.id]?.plan ?? 0} total={q[f.id]?.total ?? 0} setField={(k, v) => patch(f.id, k)(v)} run={run} onDeleted={() => setSel(null)}
+              setCategory={(cat) => run(async () => {
+                // the code follows the category (F-01 → BI-02); the server retires the old code
+                const r = await api<{ code?: string }>('PATCH', `/api/fixtures/${f.id}`, { cat });
+                if (r.code) { setFilter(''); toast(`ย้ายไปหมวด ${cat} แล้ว รหัสใหม่ ${r.code} (${f.code} จะไม่ถูกใช้ซ้ำ)`); }
+              })} />
           </>
         )}
       </section>
@@ -134,7 +139,7 @@ function ImgBox({ f, kind, file, label, run }: { f: Fixture; kind: 'photo' | 'dr
   );
 }
 
-function ItemForm({ f, cats, planQty, total, setField, run, onDeleted }: { f: Fixture; cats: Category[]; planQty: number; total: number; setField: (k: string, v: string | number | null) => void; run: (fn: () => Promise<unknown>) => Promise<void>; onDeleted: () => void }) {
+function ItemForm({ f, cats, planQty, total, setField, setCategory, run, onDeleted }: { f: Fixture; cats: Category[]; planQty: number; total: number; setField: (k: string, v: string | number | null) => void; setCategory: (cat: string) => void; run: (fn: () => Promise<unknown>) => Promise<void>; onDeleted: () => void }) {
   const cat = categoryOf(cats, f.cat);
   const lighting = f.cat === LIGHTING;
   const manualCat = cat.qty_mode === 'manual';
@@ -148,7 +153,7 @@ function ItemForm({ f, cats, planQty, total, setField, run, onDeleted }: { f: Fi
       <div className="card form">
         <div className="section-label">หมวด สถานะ และจำนวน</div>
         <Field label="หมวด">
-          <select value={f.cat} onChange={(e) => setField('cat', e.target.value)}>
+          <select value={f.cat} onChange={(e) => setCategory(e.target.value)}>
             {cats.filter((c) => !c.archived || c.prefix === f.cat).map((c) => <option key={c.prefix} value={c.prefix}>{c.prefix} · {c.name_th}</option>)}
           </select>
         </Field>
@@ -171,7 +176,7 @@ function ItemForm({ f, cats, planQty, total, setField, run, onDeleted }: { f: Fi
         </div>
       </div>
       <div className="card">
-        <h4>สัญลักษณ์บนแปลน</h4>
+        <h4>สัญลักษณ์บนแปลน <span className="muted small" style={{ fontWeight: 400 }}>หมุนทีละ 90° ได้ที่แท็บแปลน (เลือกหมุดแล้วกดปุ่มหมุน หรือกด R)</span></h4>
         <div className="symgrid">
           {symbolsFor(lighting || f.symbol !== 'marker' && !isLineSymbol(f.symbol)).map((s) => {
             const lineNow = isLineSymbol(f.symbol);
@@ -189,6 +194,14 @@ function ItemForm({ f, cats, planQty, total, setField, run, onDeleted }: { f: Fi
           {(Object.keys(COLORS) as ColorKey[]).map((c) => (
             <button key={c} className={`swatch ${f.color === c ? 'on' : ''}`} style={{ background: COLORS[c] }} onClick={() => setField('color', c)} title={COLOR_LABEL[c]} aria-label={COLOR_LABEL[c]} />
           ))}
+          {!isLineSymbol(f.symbol) && f.symbol !== 'linear' && (
+            <>
+              <span className="muted" style={{ marginLeft: 12 }}>ขนาดบนแปลน</span>
+              <span className="sizebtns" role="group" aria-label="ขนาดบนแปลน">
+                {(['S', 'M', 'L'] as const).map((s) => <button key={s} className={`chipbtn code ${f.mark_size === s ? 'on' : ''}`} onClick={() => setField('mark_size', s)}>{s}</button>)}
+              </span>
+            </>
+          )}
         </div>
         {f.symbol === 'linear' && <LengthPicker value={f.length_m} onChange={(v) => setField('length_m', v)} />}
       </div>

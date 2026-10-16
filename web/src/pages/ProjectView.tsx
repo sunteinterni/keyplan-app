@@ -7,12 +7,14 @@ import { ItemsTab } from './ItemsTab';
 import { CircuitsTab } from './CircuitsTab';
 import { QuoteTab } from './QuoteTab';
 import { ExportTab } from './ExportTab';
+import { MoodTab } from './MoodTab';
 
 // product map codes from the guideline: PRJ, PLN, ITM, BOQ …
 const TABS: [string, string, string][] = [
   ['info', 'PRJ', 'ข้อมูลโครงการ'],
   ['plan', 'PLN', 'แปลน'],
   ['items', 'ITM', 'รายการ'],
+  ['mood', 'MB', 'Mood board'],
   ['circuits', 'LV', 'วงจรไฟ'],
   ['quote', 'BOQ', 'BOQ / ใบเสนอราคา'],
   ['export', 'OUT', 'Export'],
@@ -42,6 +44,7 @@ export function ProjectView({ pid, tab, toast }: { pid: number; tab: string; toa
       {t === 'info' && <InfoTab {...props} />}
       {t === 'plan' && <PlanTab {...props} />}
       {t === 'items' && <ItemsTab {...props} />}
+      {t === 'mood' && <MoodTab {...props} />}
       {t === 'circuits' && <CircuitsTab {...props} />}
       {t === 'quote' && <QuoteTab {...props} />}
       {t === 'export' && <ExportTab {...props} />}

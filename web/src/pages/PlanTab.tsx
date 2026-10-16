@@ -5,7 +5,7 @@ import { boxOf, has, inBox, shift, toggle, union, wiringOrder, type Item } from 
 import { BRAND, SELECT_HALO, WIRE_COLORS, WIRE_NONE, onColor } from '../../../shared/brand';
 import { lineLengthM, quantities, byCode } from '../../../shared/calc';
 import { LIGHTING, categoryOf, sortCategories } from '../../../shared/categories';
-import { COLORS, COLOR_LABEL, LABEL_COLORS, SYMBOLS, linearLengthPx, baseRadius, isLineSymbol, lineStyle, pointSymbol, pointsAlong, symbolMeta, wiringPath } from '../../../shared/symbols';
+import { COLORS, COLOR_LABEL, LABEL_COLORS, ROTATIONS, SYMBOLS, markScale, linearLengthPx, baseRadius, isLineSymbol, lineStyle, pointSymbol, pointsAlong, symbolMeta, wiringPath } from '../../../shared/symbols';
 import type { ColorKey, Fixture, Floor, LineEl, Placement } from '../../../shared/types';
 import { CatIcon, ConfirmButton, Empty, FixtureChip, Prims, SymbolIcon, Txt, qty } from '../ui';
 import type { TabProps } from './common';
@@ -190,7 +190,13 @@ export function PlanTab({ bundle, reload, toast }: TabProps) {
         setTool('select');
         setSels([...placements.map((p) => ({ k: 'p' as const, id: p.id })), ...lines.map((l) => ({ k: 'l' as const, id: l.id }))]);
       } else if (e.key === 'Enter' && tool === 'line') finishLine(draft);
-      else if ((e.key === 'Delete' || e.key === 'Backspace') && sels.length) {
+      else if (!mod && k === 'r' && sels.length) {
+        // R turns every selected rotatable pin by 90° (one undo step)
+        const parts: Single[] = placements
+          .filter((p) => has(sels, { k: 'p', id: p.id }) && symbolMeta(fixtures.get(p.fixture_id)?.symbol ?? 'marker').rotatable)
+          .map((p) => ({ t: 'patch', e: 'p', id: p.id, before: { rot: p.rot }, after: { rot: (Math.round(p.rot / 90) * 90 + 90) % 360 }, label: `หมุน ${codeOf(p.fixture_id)}` }));
+        if (parts.length) void editMany(parts, `หมุน ${parts.length} จุด 90°`);
+      } else if ((e.key === 'Delete' || e.key === 'Backspace') && sels.length) {
         e.preventDefault();
         void deleteItems(sels).then(() => setSels([]));
       }
@@ -579,6 +585,7 @@ export function PlanTab({ bundle, reload, toast }: TabProps) {
                     if (!f) return null;
                     const [cx, cy] = placementPos(p);
                     const color = COLORS[f.color];
+                    const rs = f.symbol === 'linear' ? r : r * markScale(f.mark_size); // S / M / L pin size
                     const selected = has(sels, { k: 'p', id: p.id });
                     const inActive = tool === 'wire' && p.circuit_id === activeCircuit;
                     return (
@@ -586,13 +593,13 @@ export function PlanTab({ bundle, reload, toast }: TabProps) {
                         {inActive && !selected && <circle cx={cx} cy={cy} r={r * 2} fill={circuitColor(p.circuit_id)} opacity={0.25} pointerEvents="none" />}
                         {selected && (
                           <g pointerEvents="none">
-                            <circle cx={cx} cy={cy} r={r * 2.1} fill={SELECT_HALO} opacity={0.55} />
-                            <circle cx={cx} cy={cy} r={r * 2.1} fill="none" stroke={BRAND.ink} strokeWidth={u * 1.2} strokeDasharray={`${r * 0.45} ${r * 0.35}`} />
+                            <circle cx={cx} cy={cy} r={rs * 2.1} fill={SELECT_HALO} opacity={0.55} />
+                            <circle cx={cx} cy={cy} r={rs * 2.1} fill="none" stroke={BRAND.ink} strokeWidth={u * 1.2} strokeDasharray={`${r * 0.45} ${r * 0.35}`} />
                           </g>
                         )}
-                        <Prims prims={pointSymbol(f.symbol, cx, cy, r, symbolMeta(f.symbol).rotatable ? p.rot : 0, f.symbol === 'linear' ? linearLengthPx(f.length_m, floor.mpp, r) : undefined)} color={color} u={u} />
-                        <text className="lbl" x={cx + r * 0.9} y={cy - r * 1.6} fontSize={r * 1.2} fill={LABEL_COLORS[f.color]}>{f.code}</text>
-                        <circle className="hit" cx={cx} cy={cy} r={r * 1.9} fill="transparent" onPointerDown={(e) => onItemDown(e, 'p', p.id, p.circuit_id)} />
+                        <Prims prims={pointSymbol(f.symbol, cx, cy, rs, symbolMeta(f.symbol).rotatable ? p.rot : 0, f.symbol === 'linear' ? linearLengthPx(f.length_m, floor.mpp, r) : undefined)} color={color} u={u} />
+                        <text className="lbl" x={cx + rs * 0.9 + r * 0.3} y={cy - rs * 1.25 - r * 0.35} fontSize={r * 1.2} fill={LABEL_COLORS[f.color]}>{f.code}</text>
+                        <circle className="hit" cx={cx} cy={cy} r={Math.max(r, rs) * 1.9} fill="transparent" onPointerDown={(e) => onItemDown(e, 'p', p.id, p.circuit_id)} />
                         {f.symbol === 'linear' && (() => {
                           // the whole bar is clickable, not only its middle
                           const half = linearLengthPx(f.length_m, floor.mpp, r) / 2;
@@ -721,8 +728,8 @@ function CircuitSelect({ value, circuits, onChange }: { value: number | null; ci
 }
 
 function FixtureStyle({ f, edit }: { f: Fixture; edit: EditFn }) {
-  const pointKinds = SYMBOLS.filter((s) => s.geometry === (isLineSymbol(f.symbol) ? 'line' : 'point'));
-  const set = (k: 'color' | 'symbol', v: string, label: string) => {
+  const pointKinds = SYMBOLS.filter((s) => s.geometry === (isLineSymbol(f.symbol) ? 'line' : 'point') && (f.cat === LIGHTING || !s.lighting));
+  const set = (k: 'color' | 'symbol' | 'mark_size', v: string, label: string) => {
     if (f[k] !== v) void edit({ t: 'patch', e: 'fixture', id: f.id, before: { [k]: f[k] }, after: { [k]: v }, label: `${label} ${f.code}` });
   };
   return (
@@ -732,6 +739,11 @@ function FixtureStyle({ f, edit }: { f: Fixture; edit: EditFn }) {
         {(Object.keys(COLORS) as ColorKey[]).map((c) => (
           <button key={c} className={`swatch ${f.color === c ? 'on' : ''}`} style={{ background: COLORS[c] }} title={COLOR_LABEL[c]} aria-label={COLOR_LABEL[c]} onClick={() => set('color', c, 'เปลี่ยนสี')} />
         ))}
+        {!isLineSymbol(f.symbol) && f.symbol !== 'linear' && (
+          <span className="sizebtns" role="group" aria-label="ขนาดบนแปลน">
+            {(['S', 'M', 'L'] as const).map((s) => <button key={s} className={`chipbtn code ${f.mark_size === s ? 'on' : ''}`} onClick={() => set('mark_size', s, `ขนาด ${s}`)}>{s}</button>)}
+          </span>
+        )}
       </div>
       <div className="symgrid small">
         {pointKinds.map((s) => (
@@ -762,9 +774,15 @@ function PlacementPanel({ p, fixtures, fixture, circuits, edit, onDelete }: { p:
         <CircuitSelect value={p.circuit_id} circuits={circuits} onChange={(id) => set({ circuit_id: p.circuit_id, circuit_order: p.circuit_order }, { circuit_id: id }, 'ย้ายวงจร')} />
       </label>
       {rot && (
-        <label className="field"><span>ทิศทาง {Math.round(p.rot)}°</span>
-          <input type="range" min={0} max={359} value={p.rot} onChange={(e) => set({ rot: p.rot }, { rot: Number(e.target.value) }, 'หมุน', `rot:${p.id}`)} />
-        </label>
+        <div className="field"><span>หมุน (กด R เพื่อหมุนทีละ 90°)</span>
+          <div className="rotbtns">
+            {ROTATIONS.map((d) => (
+              <button key={d} className={`chipbtn ${Math.round(p.rot) % 360 === d ? 'on' : ''}`} onClick={() => set({ rot: p.rot }, { rot: d }, `หมุน ${d}°`)} aria-label={`หมุน ${d} องศา`}>
+                <span className="rotglyph" style={{ transform: `rotate(${d}deg)` }}>➜</span> {d}°
+              </button>
+            ))}
+          </div>
+        </div>
       )}
       {fixture && <FixtureStyle f={fixture} edit={edit} />}
       <ConfirmButton label="ลบจุดนี้" onConfirm={onDelete} />

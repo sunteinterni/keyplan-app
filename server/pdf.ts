@@ -7,8 +7,9 @@ import { boq, byCode, isLighting, issues as _issues, lampText, lineLengthM, load
 import { BRAND, TYPE, WIRE_COLORS as WIRE, onColor } from '../shared/brand';
 import { ICON_PATHS, MARK_SHAPES, WORDMARK_PATH } from '../shared/brand-assets';
 import { categoryOf, sortCategories, unitTh } from '../shared/categories';
-import { COLORS, LABEL_COLORS, linearLengthPx, baseRadius, isLineSymbol, lineStyle, pointSymbol, pointsAlong, polylineLength, primToSvg, symbolMeta, wiringPath } from '../shared/symbols';
-import type { Bundle, Fixture, Floor } from '../shared/types';
+import { placeImages } from '../shared/moodboard';
+import { COLORS, LABEL_COLORS, markScale, linearLengthPx, baseRadius, isLineSymbol, lineStyle, pointSymbol, pointsAlong, polylineLength, primToSvg, symbolMeta, wiringPath } from '../shared/symbols';
+import type { Bundle, Fixture, Floor, Moodboard } from '../shared/types';
 import { planImage, uploadPath } from './files';
 import { FONT_DIR, FONT_FILES, fontFor, type FontFamily, type FontWeight } from './fonts';
 
@@ -425,9 +426,10 @@ function drawPlan(c: Ctx, floor: Floor, box: PlanBox, mode: 'layout' | 'wiring')
     const cy = p.y * ih;
     doc.save();
     if (dim) doc.opacity(0.7);
-    drawPrims(doc, pointSymbol(f.symbol, cx, cy, r, symbolMeta(f.symbol).rotatable ? p.rot : 0, f.symbol === 'linear' ? linearLengthPx(f.length_m, floor.mpp, r) : undefined), color, u);
+    const rs = f.symbol === 'linear' ? r : r * markScale(f.mark_size); // S / M / L pin size
+    drawPrims(doc, pointSymbol(f.symbol, cx, cy, rs, symbolMeta(f.symbol).rotatable ? p.rot : 0, f.symbol === 'linear' ? linearLengthPx(f.length_m, floor.mpp, r) : undefined), color, u);
     doc.restore();
-    txt(doc, f.code, cx + r * 0.9, cy - r * 2.7, { size: r * 1.2, w: 600, color: LABEL_COLORS[f.color], halo: r * 0.35 });
+    txt(doc, f.code, cx + rs * 0.9 + r * 0.3, cy - rs * 1.25 - r * 1.45, { size: r * 1.2, w: 600, color: LABEL_COLORS[f.color], halo: r * 0.35 });
   }
   doc.restore();
 
@@ -717,11 +719,72 @@ function boqSheet(c: Ctx) {
   if (b.project.note) wrap(doc, b.project.note, W / 2 - MX, { size: 9.5 }).slice(0, 6).forEach((ln, i) => txt(doc, ln, MX, endY + 18 + i * 13, { size: 9.5, color: GREY }));
 }
 
+/** Parts of the book, in the order they appear after the cover. */
+export const PDF_PARTS = ['mood', 'plan', 'wiring', 'spec', 'load', 'boq'] as const;
+export type PdfPart = (typeof PDF_PARTS)[number];
+
 export interface PdfOptions {
-  prices: boolean;
+  prices: boolean; // prices on spec sheets (and the quotation when parts is not given)
+  parts?: PdfPart[]; // custom export: only these parts (the cover is always there)
+  cats?: string[] | null; // custom export: only items of these categories
 }
 
-export async function buildPdf(b: Bundle, opts: PdfOptions): Promise<Buffer> {
+/** The bundle limited to some categories: their items, and only the pins and lines that use them. */
+export function filterBundle(b: Bundle, cats: string[] | null | undefined): Bundle {
+  if (!cats) return b;
+  const keep = new Set(cats);
+  const fixtures = b.fixtures.filter((f) => keep.has(f.cat));
+  const ids = new Set(fixtures.map((f) => f.id));
+  return {
+    ...b,
+    fixtures,
+    placements: b.placements.filter((p) => ids.has(p.fixture_id)),
+    lines: b.lines.filter((l) => ids.has(l.fixture_id)).map((l) => (l.head_fixture_id && !ids.has(l.head_fixture_id) ? { ...l, head_fixture_id: null, heads: 0 } : l)),
+  };
+}
+
+/** One sheet per mood board: images fill the template slots (cropped to fit), empty slots stay as frames. */
+function moodSheets(c: Ctx) {
+  const { doc } = c;
+  for (const mb of c.b.moodboards ?? []) {
+    if (!mb.images.length) continue;
+    moodSheet(c, mb);
+  }
+  void doc;
+}
+function moodSheet(c: Ctx, mb: Moodboard) {
+  const { doc } = c;
+  newSheet(c, 'Mood Board', mb.title);
+  const noteH = mb.note ? 28 : 0;
+  const box = { x: MX, y: TOP, w: W - MX * 2, h: BOT - TOP - noteH };
+  const g = 8;
+  for (const { slot, index, image } of placeImages(mb.template, mb.images)) {
+    const x = box.x + slot.x * box.w + g / 2;
+    const y = box.y + slot.y * box.h + g / 2;
+    const w = slot.w * box.w - g;
+    const h = slot.h * box.h - g;
+    const file = image && fs.existsSync(uploadPath(image.file)) ? uploadPath(image.file) : null;
+    if (file) {
+      doc.save().rect(x, y, w, h).clip();
+      doc.image(file, x, y, { cover: [w, h], align: 'center', valign: 'center' });
+      doc.restore();
+      if (image!.caption) {
+        const o: TOpts = { size: 9, w: 500 };
+        const tw2 = Math.min(w - 12, tw(doc, image!.caption, o) + 16);
+        doc.rect(x, y + h - 22, tw2, 22).fill(BRAND.white);
+        txt(doc, clip(doc, image!.caption, tw2 - 16, o), x + 8, y + h - 16, o);
+      }
+    } else {
+      doc.save().rect(x, y, w, h).lineWidth(0.8).dash(4, { space: 3 }).strokeColor(GREY).stroke().undash().restore();
+      txt(doc, `ช่อง ${index + 1}`, x, y + h / 2 - 6, { size: 9, color: GREY, align: 'center', width: w });
+    }
+  }
+  if (mb.note) wrap(doc, mb.note, W - MX * 2, { size: 10 }).slice(0, 2).forEach((ln, i) => txt(doc, ln, MX, BOT - noteH + 8 + i * 13, { size: 10, color: GREY }));
+}
+
+export async function buildPdf(full: Bundle, opts: PdfOptions): Promise<Buffer> {
+  const b = filterBundle(full, opts.cats);
+  const want = (p: PdfPart) => (opts.parts ? opts.parts.includes(p) : p !== 'boq' || opts.prices);
   // plans are pre-rendered (greyscale / opacity per floor) because drawing is synchronous
   const plans = new Map<number, Buffer>();
   for (const fl of b.floors) {
@@ -737,11 +800,12 @@ export async function buildPdf(b: Bundle, opts: PdfOptions): Promise<Buffer> {
   });
   const c: Ctx = { doc, b, prices: opts.prices, sheets: [], plans };
   doc.addPage({ size: 'A3', layout: 'landscape', margin: 0 }); // cover, filled in by coverPage()
-  layoutSheets(c);
-  wiringSheets(c);
-  specSheets(c);
-  loadSheet(c);
-  if (opts.prices) boqSheet(c);
+  if (want('mood')) moodSheets(c); // right after the cover
+  if (want('plan')) layoutSheets(c);
+  if (want('wiring')) wiringSheets(c);
+  if (want('spec')) specSheets(c);
+  if (want('load')) loadSheet(c);
+  if (want('boq')) boqSheet(c);
   if (!c.sheets.length) newSheet(c, 'Project', 'ยังไม่มีข้อมูล');
   coverPage(c);
   footers(c);

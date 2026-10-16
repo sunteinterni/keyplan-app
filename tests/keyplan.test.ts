@@ -8,7 +8,7 @@ import path from 'node:path';
 import Database from 'better-sqlite3';
 import { boq, quantities } from '../shared/calc';
 import { BUILTIN_CATEGORIES } from '../shared/categories';
-import { migrate } from '../server/schema';
+import { SCHEMA_VERSION, migrate } from '../server/schema';
 import type { Bundle } from '../shared/types';
 
 process.env.NODE_ENV = 'test';
@@ -169,11 +169,11 @@ test('PDF and Excel exports work for a mixed project', async () => {
 
 test('VAT and net total match the workbook sample (43,834 → 3,068.38 → 46,902.38)', () => {
   const b: Bundle = {
-    categories: [], retired: [],
+    categories: [], retired: [], moodboards: [],
     project: { id: 1, name: 'T', client: '', location: '', project_no: '', designer: '', prepared_by: '', revision: '', doc_date: '2026-10-16', vat_rate: 7, voltage: 220, pf: 1, discount: 0, install_fee: 0, note: '', created_at: '', updated_at: '' },
     floors: [],
     fixtures: [{
-      id: 1, project_id: 1, code: 'F-01', cat: 'F', room: '', size: '', qty_manual: 1, status: 'draft', model: '', name: 'x', finish: '', socket: '', bulbs: null, watt_per_lamp: null, watt_total: null, kelvin: null, ip: '',
+      id: 1, project_id: 1, code: 'F-01', cat: 'F', room: '', size: '', qty_manual: 1, status: 'draft', mark_size: 'M', model: '', name: 'x', finish: '', socket: '', bulbs: null, watt_per_lamp: null, watt_total: null, kelvin: null, ip: '',
       symbol: 'marker', color: 'red', unit: 'ea', price: 43834, supplier: '', note: '', photo_file: null, drawing_file: null, spec_qty: null, sort: 0, library_id: null, library_synced_at: null, length_m: null,
     }],
     placements: [], lines: [], circuits: [],
@@ -189,7 +189,7 @@ test('a Light Theory database (schema 4) upgrades: data kept, items become Light
   db.prepare("INSERT INTO fixtures (project_id, code, model, symbol, unit, price) VALUES (1, 'LT1', 'X', 'downlight', 'ea', 450)").run();
   db.prepare("INSERT INTO library (model, category) VALUES ('Y', 'ดาวน์ไลท์')").run();
   migrate(db);
-  assert.equal(db.pragma('user_version', { simple: true }), 5);
+  assert.equal(db.pragma('user_version', { simple: true }), SCHEMA_VERSION);
   const f = db.prepare('SELECT code, cat, room, size, qty_manual, status, price FROM fixtures').get();
   assert.deepEqual(f, { code: 'LT1', cat: 'L', room: '', size: '', qty_manual: null, status: 'draft', price: 450 });
   assert.deepEqual(db.prepare('SELECT cat, category FROM library').get(), { cat: 'L', category: 'ดาวน์ไลท์' });

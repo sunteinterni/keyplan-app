@@ -187,6 +187,8 @@ select.statussel { height: 34px; font-size: 13px; padding: 0 8px; }
 .prefixes { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0; }
 .chipbtn { font: inherit; font-size: 13px; padding: 3px 10px; border: 1.5px solid var(--ink); background: var(--white); color: var(--ink); border-radius: var(--r-sm); cursor: pointer; min-height: 32px; } .chipbtn.on { background: var(--primary); font-weight: 700; }
 .prefixes input { height: 32px; } .prefixes input.on { background: var(--primary); }
+.rotbtns { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; } .rotbtns .chipbtn { padding: 3px 4px; font-family: var(--mono); } .rotglyph { display: inline-block; }
+.sizebtns { display: flex; gap: 4px; }
 .bigcode { font-size: 22px; color: var(--primary-text); }
 
 @media (max-width: 1279px) { .editor-body { grid-template-columns: 220px 1fr; } .inspector { display: none; } .totals { grid-template-columns: 1fr; } }
@@ -198,3 +200,26 @@ select.statussel { height: 34px; font-size: 13px; padding: 0 8px; }
 .chip, .codetag, .li .code { white-space: nowrap; }
 .tbl input, .tbl select { height: 36px; }
 .side > .row.between { flex-wrap: wrap; }
+
+/* mood board */
+.titleinput { font-family: var(--display); font-weight: 800; font-size: 22px; letter-spacing: -0.02em; border-color: transparent; background: transparent; padding: 0 6px; flex: 1; max-width: 520px; }
+.titleinput:hover, .titleinput:focus { border-color: var(--ink); background: var(--white); }
+.tpls { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; margin-bottom: 10px; }
+.tpl { font: inherit; font-size: 13px; display: flex; flex-direction: column; align-items: center; gap: 6px; border: var(--line); background: var(--white); border-radius: var(--r-md); padding: 10px 6px; cursor: pointer; }
+.tpl:hover { background: var(--canvas); } .tpl.on { background: var(--fill); box-shadow: inset 0 0 0 1.5px var(--ink); }
+.minilayout { flex: none; display: block; }
+.moodsheet { position: relative; width: 100%; background: var(--white); border: var(--line); border-radius: var(--r-md); margin-top: 4px; }
+.moodslot { position: absolute; box-sizing: border-box; border: 4px solid var(--white); overflow: hidden; background: var(--fill); }
+.moodslot img { width: 100%; height: 100%; object-fit: cover; display: block; cursor: grab; }
+.moodslot.empty { font: inherit; color: var(--ink-2); border: 4px solid var(--white); outline: 1.5px dashed var(--ink-2); outline-offset: -5px; background: var(--canvas); cursor: pointer; text-align: center; }
+.moodslot.empty:hover, .moodslot.over { background: var(--warn-bg); }
+.moodslot.over { outline: 3px solid var(--primary); outline-offset: -6px; }
+.moodbar { position: absolute; left: 6px; right: 6px; bottom: 6px; display: flex; gap: 4px; opacity: 0; transition: opacity .12s ease-out; }
+.moodslot:hover .moodbar, .moodslot:focus-within .moodbar { opacity: 1; }
+.moodbar .cap { flex: 1; height: 34px; font-size: 13px; }
+.export-opts { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px 16px; margin: 8px 0 12px; }
+.checkrow { display: flex; align-items: center; gap: 8px; min-height: 36px; cursor: pointer; }
+.checkrow .muted { font-size: 13px; }
+.seg { display: inline-flex; border: var(--line); border-radius: var(--r-sm); overflow: hidden; margin-bottom: 12px; }
+.seg button { font: inherit; font-weight: 600; border: 0; background: var(--white); padding: 0 16px; min-height: 40px; cursor: pointer; }
+.seg button + button { border-left: var(--line); } .seg button.on { background: var(--primary); }

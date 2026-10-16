@@ -1,10 +1,11 @@
 // Shared data types: used by the server (SQLite rows / JSON API), the web app and the PDF exporter.
 
-// marker: generic item pin for every non-lighting category; the lighting symbols come from Light Theory
-export type PointSymbol = 'marker' | 'downlight' | 'wall' | 'spot' | 'pendant' | 'linear'; // linear: T5 batten etc., a fixed-length line counted per piece
+// marker (square), circle, triangle: item pins for every category; the lighting symbols come from Light Theory
+export type PointSymbol = 'marker' | 'circle' | 'triangle' | 'downlight' | 'wall' | 'spot' | 'pendant' | 'linear'; // linear: T5 batten etc., a fixed-length line counted per piece
 export type LineSymbol = 'track' | 'strip';
 export type SymbolKind = PointSymbol | LineSymbol;
 export type ColorKey = 'red' | 'blue' | 'green';
+export type MarkSize = 'S' | 'M' | 'L';
 export type Unit = 'ea' | 'set' | 'm' | 'm2' | 'ltr' | 'roll' | 'pnl' | 'pt' | 'ls'; // see shared/categories.ts UNITS
 import type { Status } from './brand';
 export type { Status };
@@ -74,6 +75,7 @@ export interface Fixture {
   size: string; // W×D×H or other dimensions, free text
   qty_manual: number | null; // typed quantity; overrides the plan count when set (always used for manual categories)
   status: Status;
+  mark_size: MarkSize; // pin size on the plan (S / M / L)
   model: string;
   name: string;
   finish: string;
@@ -162,9 +164,28 @@ export interface Circuit {
   sort: number;
 }
 
+/** Mood board: a template (fixed slots) or 'auto' (layout from the number of images). */
+export interface MoodImage {
+  id: number;
+  board_id: number;
+  slot: number; // slot index in the template; in 'auto' the order
+  file: string;
+  caption: string;
+}
+export interface Moodboard {
+  id: number;
+  project_id: number;
+  title: string;
+  template: string; // key in shared/moodboard.ts TEMPLATES, or 'auto'
+  note: string;
+  sort: number;
+  images: MoodImage[];
+}
+
 export interface Bundle {
   project: Project;
   categories: Category[];
+  moodboards: Moodboard[];
   retired: string[]; // codes of deleted items: never issued again in this project
   floors: Floor[];
   fixtures: Fixture[];

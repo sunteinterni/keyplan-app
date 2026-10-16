@@ -3,7 +3,7 @@
 import type Database from 'better-sqlite3';
 import { BUILTIN_CATEGORIES } from '../shared/categories';
 
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 
 const q = (s: string) => `'${s.replace(/'/g, "''")}'`;
 
@@ -105,6 +105,19 @@ const migrations: Record<number, string> = {
         project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE, code TEXT NOT NULL,
         PRIMARY KEY (project_id, code)
       );`,
+  // pin size on the plan per item, and mood boards (template or automatic layout) shown after the PDF cover
+  6: `ALTER TABLE fixtures ADD COLUMN mark_size TEXT NOT NULL DEFAULT 'M';
+      CREATE TABLE moodboards (
+        id INTEGER PRIMARY KEY, project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        title TEXT NOT NULL DEFAULT 'Mood board', template TEXT NOT NULL DEFAULT 'auto', note TEXT NOT NULL DEFAULT '',
+        sort INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      CREATE TABLE moodboard_images (
+        id INTEGER PRIMARY KEY, board_id INTEGER NOT NULL REFERENCES moodboards(id) ON DELETE CASCADE,
+        slot INTEGER NOT NULL, file TEXT NOT NULL, caption TEXT NOT NULL DEFAULT '',
+        UNIQUE (board_id, slot)
+      );
+      CREATE INDEX idx_mb_p ON moodboards(project_id);`,
 };
 
 /** Brings any database (new or older version) up to SCHEMA_VERSION (or an older target, for tests of the upgrade path). */

@@ -5,13 +5,14 @@ import { pointsAlong, wiringPath, polylineLength } from '../shared/symbols';
 import type { Bundle, Fixture } from '../shared/types';
 
 const fx = (o: Partial<Fixture> & { id: number; code: string }): Fixture => ({
-  project_id: 1, cat: 'L', room: '', size: '', qty_manual: null, status: 'draft', model: 'M', name: '', finish: '', socket: '', bulbs: null, watt_per_lamp: null, watt_total: null, kelvin: 3000, ip: '',
+  project_id: 1, cat: 'L', room: '', size: '', qty_manual: null, status: 'draft', mark_size: 'M', model: 'M', name: '', finish: '', socket: '', bulbs: null, watt_per_lamp: null, watt_total: null, kelvin: 3000, ip: '',
   symbol: 'downlight', color: 'red', unit: 'ea', price: null, supplier: '', note: '', photo_file: null, drawing_file: null, spec_qty: null, sort: 0, library_id: null, library_synced_at: null, length_m: null, ...o,
 });
 
 const bundle = (): Bundle => ({
   categories: [],
   retired: [],
+  moodboards: [],
   project: { id: 1, name: 'T', client: '', location: '', project_no: '', designer: '', prepared_by: '', revision: '', doc_date: '2026-10-04', vat_rate: 7, voltage: 220, pf: 1, discount: 0, install_fee: 0, note: '', created_at: '', updated_at: '' },
   floors: [
     { id: 1, project_id: 1, name: 'F1', sort: 0, plan_file: 'a', plan_w: 1000, plan_h: 500, mpp: 0.01, symbol_scale: 1, plan_gray: 1, plan_opacity: 0.5 },

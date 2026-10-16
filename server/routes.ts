@@ -10,7 +10,8 @@ import { nextCode } from '../shared/library';
 import { FIXTURE_RULES, bad, catRule, clamp01, idOf, notRetired, num, patch, retiredCodes, row, str, touch, type Body, type Rule } from './common';
 import { registerLibraryRoutes } from './library';
 import { listCategories, registerCategoryRoutes } from './categories';
-import { buildPdf } from './pdf';
+import { copyMoodboards, listMoodboards, registerMoodboardRoutes } from './moodboards';
+import { PDF_PARTS, buildPdf, type PdfPart } from './pdf';
 import { buildXlsx } from './xlsx';
 
 const PROJECT_RULES: Record<string, Rule> = {
@@ -46,6 +47,7 @@ export function getBundle(pid: number): Bundle | null {
   return {
     project,
     categories: listCategories(),
+    moodboards: listMoodboards(pid),
     retired: (db.prepare('SELECT code FROM retired_codes WHERE project_id = ? ORDER BY code').all(pid) as { code: string }[]).map((r) => r.code),
     floors: db.prepare('SELECT * FROM floors WHERE project_id = ? ORDER BY sort, id').all(pid) as Floor[],
     fixtures: db.prepare('SELECT * FROM fixtures WHERE project_id = ? ORDER BY sort, id').all(pid) as Fixture[],
@@ -122,6 +124,7 @@ export function registerRoutes(app: FastifyInstance) {
     api.addHook('preHandler', requireUser);
     registerLibraryRoutes(api);
     registerCategoryRoutes(api);
+    registerMoodboardRoutes(api);
 
     /* ---------- users (admin) ---------- */
     api.get('/api/users', { preHandler: requireAdmin }, async () => db.prepare('SELECT id, email, name, role, created_at FROM users ORDER BY id').all());
@@ -199,8 +202,9 @@ export function registerRoutes(app: FastifyInstance) {
         const nid = Number(r.lastInsertRowid);
         const fm = new Map<number, number>(), fx = new Map<number, number>(), cm = new Map<number, number>();
         for (const f of src.floors) fm.set(f.id, Number(db.prepare('INSERT INTO floors (project_id, name, sort, plan_file, plan_w, plan_h, mpp, symbol_scale, plan_gray, plan_opacity) VALUES (?,?,?,?,?,?,?,?,?,?)').run(nid, f.name, f.sort, f.plan_file, f.plan_w, f.plan_h, f.mpp, f.symbol_scale, f.plan_gray, f.plan_opacity).lastInsertRowid));
-        for (const f of src.fixtures) fx.set(f.id, Number(db.prepare(`INSERT INTO fixtures (project_id, code, cat, room, size, qty_manual, status, model, name, finish, socket, bulbs, watt_per_lamp, watt_total, kelvin, ip, symbol, color, unit, price, supplier, note, photo_file, drawing_file, spec_qty, sort, library_id, library_synced_at, length_m)
-          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(nid, f.code, f.cat, f.room, f.size, f.qty_manual, f.status, f.model, f.name, f.finish, f.socket, f.bulbs, f.watt_per_lamp, f.watt_total, f.kelvin, f.ip, f.symbol, f.color, f.unit, f.price, f.supplier, f.note, f.photo_file, f.drawing_file, f.spec_qty, f.sort, f.library_id, f.library_synced_at, f.length_m).lastInsertRowid));
+        for (const f of src.fixtures) fx.set(f.id, Number(db.prepare(`INSERT INTO fixtures (project_id, code, cat, room, size, qty_manual, status, mark_size, model, name, finish, socket, bulbs, watt_per_lamp, watt_total, kelvin, ip, symbol, color, unit, price, supplier, note, photo_file, drawing_file, spec_qty, sort, library_id, library_synced_at, length_m)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(nid, f.code, f.cat, f.room, f.size, f.qty_manual, f.status, f.mark_size, f.model, f.name, f.finish, f.socket, f.bulbs, f.watt_per_lamp, f.watt_total, f.kelvin, f.ip, f.symbol, f.color, f.unit, f.price, f.supplier, f.note, f.photo_file, f.drawing_file, f.spec_qty, f.sort, f.library_id, f.library_synced_at, f.length_m).lastInsertRowid));
+        copyMoodboards(src.moodboards, nid);
         for (const code of src.retired) db.prepare('INSERT INTO retired_codes (project_id, code) VALUES (?, ?)').run(nid, code);
         for (const c of src.circuits) cm.set(c.id, Number(db.prepare('INSERT INTO circuits (project_id, name, area, breaker_a, note, sort) VALUES (?,?,?,?,?,?)').run(nid, c.name, c.area, c.breaker_a, c.note, c.sort).lastInsertRowid));
         for (const p2 of src.placements) db.prepare('INSERT INTO placements (project_id, floor_id, fixture_id, x, y, rot, circuit_id, circuit_order) VALUES (?,?,?,?,?,?,?,?)').run(nid, fm.get(p2.floor_id), fx.get(p2.fixture_id), p2.x, p2.y, p2.rot, p2.circuit_id ? cm.get(p2.circuit_id) : null, p2.circuit_order);
@@ -317,9 +321,18 @@ export function registerRoutes(app: FastifyInstance) {
         if (used) throw bad('เปลี่ยนระหว่างสัญลักษณ์จุดกับเส้นไม่ได้ เพราะรหัสนี้ถูกใช้บนแปลนแล้ว ลบจุด/เส้นก่อน', 409);
       }
       if ('code' in b && str(b.code) !== f.code) notRetired(f.project_id, str(b.code));
+      let code: string | undefined;
+      if ('cat' in b && str(b.cat) !== f.cat && !('code' in b)) {
+        // a new category means a new code in that category (F-01 → BI-02); the old code is retired, never reissued
+        catRule(b.cat);
+        const codes = (db.prepare('SELECT code FROM fixtures WHERE project_id = ?').all(f.project_id) as { code: string }[]).map((x) => x.code);
+        code = nextCode([...codes, ...retiredCodes(f.project_id)], str(b.cat));
+        db.prepare('INSERT OR IGNORE INTO retired_codes (project_id, code) VALUES (?, ?)').run(f.project_id, f.code);
+        db.prepare('UPDATE fixtures SET code = ? WHERE id = ?').run(code, id);
+      }
       patch('fixtures', id, FIXTURE_RULES, b);
       touch(f.project_id);
-      return { ok: true };
+      return code ? { ok: true, code } : { ok: true };
     });
     api.delete('/api/fixtures/:id', async (req) => {
       const id = idOf(req);
@@ -425,8 +438,11 @@ export function registerRoutes(app: FastifyInstance) {
     api.get('/api/projects/:id/export.pdf', async (req, reply) => {
       const b = getBundle(idOf(req));
       if (!b) throw bad('ไม่พบโครงการ', 404);
-      const q = req.query as { prices?: string };
-      const buf = await buildPdf(b, { prices: q.prices !== '0' });
+      const q = req.query as { prices?: string; parts?: string; cats?: string };
+      // custom export: ?parts=mood,plan,spec,boq & cats=F,L (comma separated); without them, the whole book
+      const parts = q.parts != null ? q.parts.split(',').filter((p): p is PdfPart => (PDF_PARTS as readonly string[]).includes(p)) : undefined;
+      const cats = q.cats != null ? q.cats.split(',').filter(Boolean) : null;
+      const buf = await buildPdf(b, { prices: q.prices !== '0', parts, cats });
       return reply.header('content-type', 'application/pdf').header('content-disposition', attach(`${b.project.name}-keyplan.pdf`)).send(buf);
     });
     api.get('/api/projects/:id/export.xlsx', async (req, reply) => {

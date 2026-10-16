@@ -29,7 +29,9 @@ export interface SymbolMeta {
 }
 
 export const SYMBOLS: SymbolMeta[] = [
-  { kind: 'marker', label: 'หมุดรายการ', geometry: 'point', rotatable: false, lighting: false },
+  { kind: 'marker', label: 'สี่เหลี่ยม', geometry: 'point', rotatable: true, lighting: false },
+  { kind: 'circle', label: 'วงกลม', geometry: 'point', rotatable: true, lighting: false },
+  { kind: 'triangle', label: 'สามเหลี่ยม', geometry: 'point', rotatable: true, lighting: false },
   { kind: 'downlight', label: 'ดาวน์ไลท์', geometry: 'point', rotatable: false, lighting: true },
   { kind: 'wall', label: 'ไฟกิ่ง', geometry: 'point', rotatable: true, lighting: true },
   { kind: 'spot', label: 'สปอตไลท์ (ลูกศร)', geometry: 'point', rotatable: true, lighting: true },
@@ -41,7 +43,14 @@ export const SYMBOLS: SymbolMeta[] = [
 
 export const symbolMeta = (k: SymbolKind): SymbolMeta => SYMBOLS.find((s) => s.kind === k) ?? SYMBOLS[0];
 export const isLineSymbol = (k: SymbolKind) => k === 'track' || k === 'strip';
-/** Symbols offered for a category: lighting gets every symbol, other categories the marker and the two lines. */
+/** Pin size on the plan: S / M / L multiply the floor's symbol size. */
+export const MARK_SIZES = { S: 0.7, M: 1, L: 1.45 } as const;
+export const markScale = (s: string | null | undefined) => MARK_SIZES[(s ?? 'M') as keyof typeof MARK_SIZES] ?? 1;
+export const isMarkSize = (s: unknown) => s === 'S' || s === 'M' || s === 'L';
+/** Rotation steps offered as buttons. */
+export const ROTATIONS = [0, 90, 180, 270] as const;
+
+/** Symbols offered for a category: lighting gets every symbol, other categories the three pin shapes and the two lines. */
 export const symbolsFor = (lighting: boolean) => SYMBOLS.filter((s) => lighting || !s.lighting);
 /** Default plan symbol for a new item. */
 export const defaultSymbol = (lighting: boolean, lengthUnit = false): SymbolKind => (lengthUnit ? 'strip' : lighting ? 'downlight' : 'marker');
@@ -84,6 +93,13 @@ export function pointSymbol(kind: SymbolKind, cx: number, cy: number, r: number,
       // a small room-plan square with a centre dot: reads as "item here" without looking like a light
       const k = 0.95 * r;
       return [{ t: 'poly', pts: [T(-k, -k), T(k, -k), T(k, k), T(-k, k)], sw: 1.15 }, C(0, 0, 0.32 * r, true)];
+    }
+    case 'circle':
+      return [C(0, 0, r, false, 1.15), C(0, 0, 0.32 * r, true)];
+    case 'triangle': {
+      // points to +x at rotation 0, so the four rotation steps turn it right / down / left / up
+      const k = 1.1 * r;
+      return [{ t: 'poly', pts: [T(k, 0), T(-0.6 * k, -0.9 * k), T(-0.6 * k, 0.9 * k)], sw: 1.15 }, C(-0.05 * r, 0, 0.28 * r, true)];
     }
     case 'downlight':
       return [C(0, 0, r), L(-1.45 * r, 0, 1.45 * r, 0), L(0, -1.45 * r, 0, 1.45 * r)];
