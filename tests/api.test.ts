@@ -164,10 +164,10 @@ test('central library: import a copy, review library edits, save and push back, 
   await call('PATCH', `/api/fixtures/${t5fx.id}`, { length_m: 1.2 });
   assert.equal((await fixtureOf(t5fx.id)).length_m, 1.2);
 
-  // line items take the category prefix by default (KEYPLAN: L-01 …); lighting sub-prefixes like LN are a choice in the picker
+  // the project copy keeps the library code when it is free in the project; lighting sub-prefixes like EX are a choice in the picker
   const strip = (await call('POST', '/api/library', { model: 'STRIP-9', symbol: 'strip', price: 180 })).body.id;
   r = await call('POST', `/api/projects/${pid}/fixtures/from-library`, { library_id: strip });
-  assert.equal(r.body.code, 'L-01');
+  assert.equal(r.body.code, (await libOf(strip)).code);
   assert.equal((await call('POST', `/api/projects/${pid}/fixtures/from-library`, { library_id: strip, prefix: 'ex' })).body.code, 'EX-01', 'user-chosen prefix');
   assert.equal((await fixtureOf(r.body.id)).unit, 'm');
 

@@ -67,9 +67,10 @@ export function Library({ me, toast }: { me: User; toast: (m: string) => void })
           {list.map((x) => (
             <button key={x.id} className={`li libli ${x.id === sel ? 'on' : ''}`} onClick={() => setSel(x.id)}>
               <CatIcon icon={categoryOf(cats, x.cat).icon} size={20} />
+              <span className="code">{x.code}</span>
               <span className="grow">
                 <span className="trunc block">{x.name || x.model || <i className="muted">ยังไม่ตั้งชื่อ</i>}</span>
-                <span className="trunc block muted small">{[x.cat, x.name ? x.model : '', x.category].filter(Boolean).join(' · ')}</span>
+                <span className="trunc block muted small">{[x.name ? x.model : '', x.category].filter(Boolean).join(' · ') || categoryOf(cats, x.cat).name_th}</span>
               </span>
               <span className="qty" title="จำนวนรหัสในโปรเจกต์ที่ใช้">{x.used ? `ใช้ ${x.used}` : ''}</span>
             </button>
@@ -116,7 +117,7 @@ function LibraryForm({ it, cats, me, run, onDeleted }: { it: LibraryItem; cats: 
   return (
     <>
       <div className="row between">
-        <h2 className="row gap"><CatIcon icon={c.icon} size={28} />{it.name || it.model || 'ยังไม่ตั้งชื่อ'} <span className="muted small mono">{libPrice(it)}</span></h2>
+        <h2 className="row gap"><CatIcon icon={c.icon} size={28} /><span className="codetag">{it.code}</span> {it.name || it.model || 'ยังไม่ตั้งชื่อ'} <span className="muted small mono">{libPrice(it)}</span></h2>
         {me.role === 'admin' ? (
           <ConfirmButton label="ลบออกจากคลัง" confirm={it.used ? `ยืนยัน (${it.used} โปรเจกต์ยังเก็บสำเนาไว้)` : 'ยืนยันลบ'} onConfirm={() => run(async () => { await api('DELETE', `/api/library/${it.id}`); onDeleted(); })} />
         ) : (
@@ -160,6 +161,7 @@ function LibraryForm({ it, cats, me, run, onDeleted }: { it: LibraryItem; cats: 
       </div>
       <div className="card form">
         <div className="section-label">รายละเอียด</div>
+        {F({ k: 'code', label: 'รหัสในคลัง' })}
         {F({ k: 'name', label: 'ชื่อรายการ' })}
         {F({ k: 'model', label: 'รุ่น / SKU' })}
         {F({ k: 'size', label: 'ขนาด (ก×ล×ส)' })}

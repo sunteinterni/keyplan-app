@@ -101,9 +101,9 @@ export function ItemsTab({ bundle, reload, toast }: TabProps) {
             <LibraryStatus f={f} item={f.library_id != null ? libById.get(f.library_id) : undefined} loaded={!!lib.items} run={run} />
             <ItemForm key={f.id} f={f} cats={cats} planQty={q[f.id]?.plan ?? 0} total={q[f.id]?.total ?? 0} setField={(k, v) => patch(f.id, k)(v)} run={run} onDeleted={() => setSel(null)}
               setCategory={(cat) => run(async () => {
-                // the code follows the category (F-01 → BI-02); the server retires the old code
-                const r = await api<{ code?: string }>('PATCH', `/api/fixtures/${f.id}`, { cat });
-                if (r.code) { setFilter(''); toast(`ย้ายไปหมวด ${cat} แล้ว รหัสใหม่ ${r.code} (${f.code} จะไม่ถูกใช้ซ้ำ)`); }
+                // the code stays as it is; it can be edited by hand in the form
+                await api('PATCH', `/api/fixtures/${f.id}`, { cat });
+                setFilter('');
               })} />
           </>
         )}
@@ -262,11 +262,11 @@ function LibraryPicker({ items, cats, codes, onPick, onClose }: { items: Library
             <button key={it.id} className="pickrow" onClick={() => onPick(it, it.cat)}>
               <span className="thumb">{it.photo_file ? <img src={fileUrl(it.photo_file)} alt="" /> : <CatIcon icon={categoryOf(cats, it.cat).icon} size={26} />}</span>
               <span className="grow">
-                <b>{it.name || it.model || 'ยังไม่ตั้งชื่อ'}</b> <span className="muted">{it.name ? it.model : ''}</span>
+                <b className="codetag">{it.code}</b> <b>{it.name || it.model || 'ยังไม่ตั้งชื่อ'}</b> <span className="muted">{it.name ? it.model : ''}</span>
                 <span className="block muted small">{[categoryOf(cats, it.cat).name_th, it.category, libSpec(it), it.supplier].filter(Boolean).join(' · ')}</span>
               </span>
               <span className={it.price == null ? 'warn small' : 'small mono'}>{libPrice(it)}</span>
-              <span className="btn small">+ เป็น <span className="codetag">{nextCode(codes, it.cat)}</span></span>
+              <span className="btn small">+ เป็น <span className="codetag">{it.code && !codes.includes(it.code) ? it.code : nextCode(codes, it.cat)}</span></span>
             </button>
           ))}
           {list.length === 0 && <div className="muted small">{items.length ? 'ไม่พบรายการที่ค้นหา' : 'คลังยังว่าง บันทึกรายการจากโปรเจกต์เข้าคลังด้วยปุ่ม “บันทึกเข้าคลัง” ในฟอร์มของแต่ละรหัส'}</div>}

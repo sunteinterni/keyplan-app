@@ -59,5 +59,5 @@ export function nextCode(codes: string[], prefix = 'X'): string {
 }
 
 /** Text a library search matches against. */
-export const searchText = (i: Pick<LibraryItem, 'cat' | 'model' | 'name' | 'size' | 'supplier' | 'category' | 'socket' | 'finish'>) =>
-  [i.cat, i.model, i.name, i.size, i.supplier, i.category, i.socket, i.finish].join(' ').toLowerCase();
+export const searchText = (i: Pick<LibraryItem, 'code' | 'cat' | 'model' | 'name' | 'size' | 'supplier' | 'category' | 'socket' | 'finish'>) =>
+  [i.code, i.cat, i.model, i.name, i.size, i.supplier, i.category, i.socket, i.finish].join(' ').toLowerCase();

@@ -5,7 +5,7 @@ import { SYMBOLS } from '../shared/symbols';
 import type { Fixture, LibraryItem } from '../shared/types';
 
 const spec = { cat: 'L', size: '', model: 'M-1', name: 'ดาวน์ไลท์', finish: '', socket: 'GU10', bulbs: 1, watt_per_lamp: 7, watt_total: null, kelvin: 3000, ip: 'IP20', symbol: 'downlight', unit: 'ea', price: 450, supplier: 'ร้าน A', note: '', photo_file: 'a.jpg', drawing_file: null, length_m: null } as const;
-const item = (o: Partial<LibraryItem> = {}): LibraryItem => ({ id: 7, ...spec, color: 'red', category: 'ดาวน์ไลท์', created_by: 1, created_at: '2026-10-01 10:00:00', updated_at: '2026-10-01 10:00:00', ...o });
+const item = (o: Partial<LibraryItem> = {}): LibraryItem => ({ id: 7, code: 'L-01', ...spec, color: 'red', category: 'ดาวน์ไลท์', created_by: 1, created_at: '2026-10-01 10:00:00', updated_at: '2026-10-01 10:00:00', ...o });
 const fx = (o: Partial<Fixture> = {}): Fixture => ({ id: 1, project_id: 1, code: 'LT1', room: '', qty_manual: null, status: 'draft', mark_size: 'M', ...spec, color: 'blue', spec_qty: null, sort: 0, library_id: 7, library_synced_at: '2026-10-01 10:00:00', ...o });
 
 test('no changes between a fresh copy and its library item (colour and code are the project’s own)', () => {

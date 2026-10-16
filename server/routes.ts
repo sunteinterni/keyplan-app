@@ -321,18 +321,10 @@ export function registerRoutes(app: FastifyInstance) {
         if (used) throw bad('เปลี่ยนระหว่างสัญลักษณ์จุดกับเส้นไม่ได้ เพราะรหัสนี้ถูกใช้บนแปลนแล้ว ลบจุด/เส้นก่อน', 409);
       }
       if ('code' in b && str(b.code) !== f.code) notRetired(f.project_id, str(b.code));
-      let code: string | undefined;
-      if ('cat' in b && str(b.cat) !== f.cat && !('code' in b)) {
-        // a new category means a new code in that category (F-01 → BI-02); the old code is retired, never reissued
-        catRule(b.cat);
-        const codes = (db.prepare('SELECT code FROM fixtures WHERE project_id = ?').all(f.project_id) as { code: string }[]).map((x) => x.code);
-        code = nextCode([...codes, ...retiredCodes(f.project_id)], str(b.cat));
-        db.prepare('INSERT OR IGNORE INTO retired_codes (project_id, code) VALUES (?, ?)').run(f.project_id, f.code);
-        db.prepare('UPDATE fixtures SET code = ? WHERE id = ?').run(code, id);
-      }
+      // changing the category keeps the code (codes on drawings never shift); the user can edit the code by hand
       patch('fixtures', id, FIXTURE_RULES, b);
       touch(f.project_id);
-      return code ? { ok: true, code } : { ok: true };
+      return { ok: true };
     });
     api.delete('/api/fixtures/:id', async (req) => {
       const id = idOf(req);

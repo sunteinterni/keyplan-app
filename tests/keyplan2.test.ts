@@ -38,21 +38,41 @@ async function uploadTo(url: string, buf: Buffer) {
 
 await call('POST', '/api/auth/setup', { email: 'owner@kp.test', name: 'Owner', password: 'secret123' });
 
-test('changing the category gives the next code of that category and retires the old one', async () => {
+test('changing the category keeps the code', async () => {
   const pid = (await call('POST', '/api/projects', { name: 'Recode' })).body.id;
-  await call('POST', `/api/projects/${pid}/fixtures`, { cat: 'BI' });
   const id = (await call('POST', `/api/projects/${pid}/fixtures`, { cat: 'F' })).body.id;
-  const r = await call('PATCH', `/api/fixtures/${id}`, { cat: 'BI' });
-  assert.equal(r.status, 200);
-  assert.equal(r.body.code, 'BI-02');
+  assert.equal((await call('PATCH', `/api/fixtures/${id}`, { cat: 'BI' })).status, 200);
   const b = await bundleOf(pid);
-  assert.equal(b.fixtures.find((f) => f.id === id)!.code, 'BI-02');
-  assert.deepEqual(b.retired, ['F-01']);
-  const n = (await call('POST', `/api/projects/${pid}/fixtures`, { cat: 'F' })).body.id;
-  assert.equal((await bundleOf(pid)).fixtures.find((f) => f.id === n)!.code, 'F-02', 'F-01 is not issued again');
-  assert.equal((await call('PATCH', `/api/fixtures/${id}`, { cat: 'BI' })).body.code, undefined, 'same category: code unchanged');
+  const f = b.fixtures.find((x) => x.id === id)!;
+  assert.deepEqual([f.code, f.cat], ['F-01', 'BI']);
+  assert.deepEqual(b.retired, []);
   assert.equal((await call('PATCH', `/api/fixtures/${id}`, { cat: 'NOPE' })).status, 400);
-  assert.equal((await bundleOf(pid)).fixtures.find((f) => f.id === id)!.code, 'BI-02', 'a bad category changes nothing');
+});
+
+test('library items get their own code per category; deleted codes are not reused; codes travel to projects', async () => {
+  const a = (await call('POST', '/api/library', { cat: 'F', name: 'โซฟา' })).body.id;
+  const b2 = (await call('POST', '/api/library', { cat: 'F', name: 'โต๊ะ' })).body.id;
+  const s = (await call('POST', '/api/library', { cat: 'S', name: 'กระเบื้อง' })).body.id;
+  const lib = async () => (await call('GET', '/api/library')).body as { id: number; code: string; cat: string }[];
+  const codeOf = async (id: number) => (await lib()).find((x) => x.id === id)!.code;
+  assert.deepEqual([await codeOf(a), await codeOf(b2), await codeOf(s)], ['F-01', 'F-02', 'S-01']);
+  // category change keeps the code
+  assert.equal((await call('PATCH', `/api/library/${s}`, { cat: 'P' })).status, 200);
+  assert.equal(await codeOf(s), 'S-01');
+  // deleted code is retired
+  assert.equal((await call('DELETE', `/api/library/${b2}`)).status, 200);
+  const c = (await call('POST', '/api/library', { cat: 'F' })).body.id;
+  assert.equal(await codeOf(c), 'F-03');
+  assert.equal((await call('PATCH', `/api/library/${c}`, { code: 'F-02' })).status, 409);
+  assert.equal((await call('PATCH', `/api/library/${c}`, { code: 'F-01' })).status, 409, 'unique in the library');
+  // library → project keeps the library code when it is free there
+  const pid = (await call('POST', '/api/projects', { name: 'Codes travel' })).body.id;
+  assert.equal((await call('POST', `/api/projects/${pid}/fixtures/from-library`, { library_id: c })).body.code, 'F-03');
+  assert.equal((await call('POST', `/api/projects/${pid}/fixtures/from-library`, { library_id: c })).body.code, 'F-04', 'taken → next free');
+  // project → library keeps the project code when the library does not have it
+  const fx = (await call('POST', `/api/projects/${pid}/fixtures`, { cat: 'D', name: 'แจกัน' })).body.id;
+  const lid = (await call('POST', `/api/fixtures/${fx}/to-library`, {})).body.id;
+  assert.equal(await codeOf(lid), 'D-01');
 });
 
 test('pin shapes and S/M/L size', async () => {

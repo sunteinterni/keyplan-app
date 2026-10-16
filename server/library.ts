@@ -15,7 +15,20 @@ import type { Fixture, LibraryItem } from '../shared/types';
 // library timestamps keep milliseconds so "edited after the copy" is reliable within the same second
 const NOW = "strftime('%Y-%m-%d %H:%M:%f', 'now')";
 
+const libCodes = () => [
+  ...(db.prepare('SELECT code FROM library').all() as { code: string }[]).map((r) => r.code),
+  ...(db.prepare('SELECT code FROM library_retired').all() as { code: string }[]).map((r) => r.code),
+];
+/** Next free library code in a category; deleted codes count as taken. */
+const nextLibCode = (prefix: string) => nextCode(libCodes(), prefix);
+
 const LIB_RULES: Record<string, Rule> = {
+  code: (v) => {
+    const c = str(v).toUpperCase();
+    if (!c) throw bad('ต้องระบุรหัส');
+    if (row('SELECT 1 FROM library_retired WHERE code = ?', c)) throw bad(`รหัส ${c} เคยใช้กับสินค้าที่ลบไปแล้ว ใช้ซ้ำไม่ได้`, 409);
+    return c;
+  },
   ...Object.fromEntries([...SPEC_FIELDS.filter((k) => k in FIXTURE_RULES), 'color'].map((k) => [k, FIXTURE_RULES[k]])),
   category: str,
 };
@@ -52,8 +65,8 @@ export function registerLibraryRoutes(api: FastifyInstance) {
     const cat = categoryOf(listCategories(), b.cat == null ? LIGHTING : (catRule(b.cat) as string));
     const lighting = cat.prefix === LIGHTING;
     const symbol = symbolsFor(lighting).some((x) => x.kind === str(b.symbol)) ? str(b.symbol) : defaultSymbol(lighting, isLengthUnit(cat.unit));
-    const r = db.prepare(`INSERT INTO library (cat, symbol, unit, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ${NOW}, ${NOW})`)
-      .run(cat.prefix, symbol, isLineSymbol(symbol as never) ? 'm' : cat.unit, req.user?.id ?? null);
+    const r = db.prepare(`INSERT INTO library (code, cat, symbol, unit, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ${NOW}, ${NOW})`)
+      .run(nextLibCode(cat.prefix), cat.prefix, symbol, isLineSymbol(symbol as never) ? 'm' : cat.unit, req.user?.id ?? null);
     const id = Number(r.lastInsertRowid);
     const rest = { ...b };
     delete rest.cat;
@@ -75,7 +88,11 @@ export function registerLibraryRoutes(api: FastifyInstance) {
   api.delete('/api/library/:id', { preHandler: requireAdmin }, async (req) => {
     const id = idOf(req);
     mustItem(id);
-    db.prepare('DELETE FROM library WHERE id = ?').run(id);
+    const it = mustItem(id);
+    db.transaction(() => {
+      db.prepare('DELETE FROM library WHERE id = ?').run(id);
+      db.prepare('INSERT OR IGNORE INTO library_retired (code) VALUES (?)').run(it.code);
+    })();
     return { ok: true };
   });
 
@@ -105,7 +122,9 @@ export function registerLibraryRoutes(api: FastifyInstance) {
     const f = mustFixture(idOf(req));
     if (f.library_id && item(f.library_id)) throw bad('รหัสนี้ผูกกับคลังอยู่แล้ว', 409);
     const b = (req.body ?? {}) as Body;
-    const r = db.prepare(`INSERT INTO library (category, created_by, created_at, updated_at) VALUES (?, ?, ${NOW}, ${NOW})`).run(str(b.category), req.user?.id ?? null);
+    const taken = new Set(libCodes());
+    const code = taken.has(f.code) ? nextLibCode(f.cat) : f.code;
+    const r = db.prepare(`INSERT INTO library (code, category, created_by, created_at, updated_at) VALUES (?, ?, ?, ${NOW}, ${NOW})`).run(code, str(b.category), req.user?.id ?? null);
     const lid = Number(r.lastInsertRowid);
     copySpec('library', lid, f as unknown as Record<string, unknown>, ['color']);
     db.prepare('UPDATE fixtures SET library_id = ?, library_synced_at = (SELECT updated_at FROM library WHERE id = ?) WHERE id = ?').run(lid, lid, f.id);
@@ -151,7 +170,8 @@ export function registerLibraryRoutes(api: FastifyInstance) {
     const b = (req.body ?? {}) as Body;
     const it = mustItem(Number(num(b.library_id)));
     const codes = (db.prepare('SELECT code FROM fixtures WHERE project_id = ?').all(pid) as { code: string }[]).map((x) => x.code);
-    const code = str(b.code) || nextCode([...codes, ...retiredCodes(pid)], str(b.prefix) ? cleanPrefix(str(b.prefix)) : it.cat);
+    const used = [...codes, ...retiredCodes(pid)];
+    const code = str(b.code) || (str(b.prefix) ? nextCode(used, cleanPrefix(str(b.prefix))) : !used.includes(it.code) && it.code ? it.code : nextCode(used, it.cat));
     notRetired(pid, code);
     const r = db.prepare('INSERT INTO fixtures (project_id, code, sort, library_id, library_synced_at) VALUES (?, ?, ?, ?, ?)').run(pid, code, codes.length, it.id, it.updated_at);
     const id = Number(r.lastInsertRowid);

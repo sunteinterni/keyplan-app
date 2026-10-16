@@ -3,7 +3,7 @@
 import type Database from 'better-sqlite3';
 import { BUILTIN_CATEGORIES } from '../shared/categories';
 
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 
 const q = (s: string) => `'${s.replace(/'/g, "''")}'`;
 
@@ -118,6 +118,11 @@ const migrations: Record<number, string> = {
         UNIQUE (board_id, slot)
       );
       CREATE INDEX idx_mb_p ON moodboards(project_id);`,
+  // library items get their own code (F-01 …), numbered per category in the library and never reused after deletion
+  7: `ALTER TABLE library ADD COLUMN code TEXT NOT NULL DEFAULT '';
+      UPDATE library SET code = cat || '-' || printf('%02d', (SELECT COUNT(*) FROM library l2 WHERE l2.cat = library.cat AND l2.id <= library.id));
+      CREATE UNIQUE INDEX idx_lib_code ON library(code);
+      CREATE TABLE library_retired (code TEXT PRIMARY KEY);`,
 };
 
 /** Brings any database (new or older version) up to SCHEMA_VERSION (or an older target, for tests of the upgrade path). */

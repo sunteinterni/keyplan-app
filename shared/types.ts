@@ -103,6 +103,7 @@ export interface Fixture {
 /** Central fixture library shared by all projects. Projects keep their own copy (see shared/library.ts). */
 export interface LibraryItem {
   id: number;
+  code: string; // library code (F-01 …), numbered per category, never reused
   model: string;
   name: string;
   finish: string;
