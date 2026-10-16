@@ -64,6 +64,8 @@ export interface Floor {
   symbol_scale: number; // multiplier on symbol size for this floor
   plan_gray: number; // 1 = show the plan in greyscale (web + PDF), 0 = original colours
   plan_opacity: number; // 0.1–1, plan drawn over white at this opacity
+  plan_orig: string | null; // the uploaded plan before rotation
+  plan_rot: number; // 0 / 90 / 180 / 270, clockwise from the upload
 }
 
 export interface Fixture {
@@ -172,6 +174,19 @@ export interface MoodImage {
   slot: number; // slot index in the template; in 'auto' the order
   file: string;
   caption: string;
+  img_w: number | null; // pixel size of the image
+  img_h: number | null;
+  // canvas mode: frame as fractions of the sheet (null = not placed yet), layer order, crop as fractions of the image
+  x: number | null;
+  y: number | null;
+  w: number | null;
+  h: number | null;
+  z: number;
+  crop_x: number;
+  crop_y: number;
+  crop_w: number;
+  crop_h: number;
+  cutout: string | null; // PNG with the background removed; shown instead of file when set
 }
 export interface Moodboard {
   id: number;

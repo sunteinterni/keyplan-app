@@ -7,7 +7,7 @@ import { boq, byCode, isLighting, issues as _issues, lampText, lineLengthM, load
 import { BRAND, TYPE, WIRE_COLORS as WIRE, onColor } from '../shared/brand';
 import { ICON_PATHS, MARK_SHAPES, WORDMARK_PATH } from '../shared/brand-assets';
 import { categoryOf, sortCategories, unitTh } from '../shared/categories';
-import { placeImages } from '../shared/moodboard';
+import { CANVAS, canvasItems, cropPlacement, placeImages } from '../shared/moodboard';
 import { COLORS, LABEL_COLORS, markScale, linearLengthPx, baseRadius, isLineSymbol, lineStyle, pointSymbol, pointsAlong, polylineLength, primToSvg, symbolMeta, wiringPath } from '../shared/symbols';
 import type { Bundle, Fixture, Floor, Moodboard } from '../shared/types';
 import { planImage, uploadPath } from './files';
@@ -758,12 +758,28 @@ function moodSheet(c: Ctx, mb: Moodboard) {
   const noteH = mb.note ? 28 : 0;
   const box = { x: MX, y: TOP, w: W - MX * 2, h: BOT - TOP - noteH };
   const g = 8;
-  for (const { slot, index, image } of placeImages(mb.template, mb.images)) {
+  if (mb.template === CANVAS) {
+    // collage: frames in layer order, each image cropped to its frame; cut-outs keep their transparency
+    doc.rect(box.x, box.y, box.w, box.h).fill(BRAND.white);
+    doc.save().rect(box.x, box.y, box.w, box.h).clip();
+    for (const { img, frame } of canvasItems(mb.images)) {
+      const file = uploadPath(img.cutout ?? img.file);
+      if (!fs.existsSync(file)) continue;
+      const fr = { x: box.x + frame.x * box.w, y: box.y + frame.y * box.h, w: frame.w * box.w, h: frame.h * box.h };
+      const at = cropPlacement(fr, img);
+      doc.save().rect(fr.x, fr.y, fr.w, fr.h).clip();
+      doc.image(file, at.x, at.y, { width: at.w, height: at.h });
+      doc.restore();
+      if (img.caption) txt(doc, clip(doc, img.caption, fr.w, { size: 9, w: 500 }), fr.x, fr.y + fr.h + 3, { size: 9, w: 500, color: GREY });
+    }
+    doc.restore();
+    doc.rect(box.x, box.y, box.w, box.h).lineWidth(0.6).strokeColor(RULE).stroke();
+  } else for (const { slot, index, image } of placeImages(mb.template, mb.images)) {
     const x = box.x + slot.x * box.w + g / 2;
     const y = box.y + slot.y * box.h + g / 2;
     const w = slot.w * box.w - g;
     const h = slot.h * box.h - g;
-    const file = image && fs.existsSync(uploadPath(image.file)) ? uploadPath(image.file) : null;
+    const file = image && fs.existsSync(uploadPath(image.cutout ?? image.file)) ? uploadPath(image.cutout ?? image.file) : null;
     if (file) {
       doc.save().rect(x, y, w, h).clip();
       doc.image(file, x, y, { cover: [w, h], align: 'center', valign: 'center' });

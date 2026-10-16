@@ -25,9 +25,52 @@ export const TEMPLATES: Template[] = [
   { key: 'grid6', th: 'ตาราง 3×2', slots: grid(3, 2) },
   { key: 'band3', th: '3 แถบตั้ง', slots: grid(3, 1) },
   { key: 'top2', th: 'บน 1 + ล่าง 3', slots: [{ x: 0, y: 0, w: 1, h: 0.58 }, { x: 0, y: 0.58, w: 1 / 3, h: 0.42 }, { x: 1 / 3, y: 0.58, w: 1 / 3, h: 0.42 }, { x: 2 / 3, y: 0.58, w: 1 / 3, h: 0.42 }] },
+  // larger sets (8–16 images)
+  { key: 'grid8', th: 'ตาราง 4×2', slots: grid(4, 2) },
+  { key: 'hero9', th: 'ภาพใหญ่ + 8', slots: [{ x: 0, y: 0, w: 0.5, h: 2 / 3 }, ...[0, 1, 2, 3].map((i) => ({ x: 0.5 + (i % 2) * 0.25, y: Math.floor(i / 2) / 3, w: 0.25, h: 1 / 3 })), ...[0, 1, 2, 3].map((i) => ({ x: i * 0.25, y: 2 / 3, w: 0.25, h: 1 / 3 }))] },
+  { key: 'grid9', th: 'ตาราง 3×3', slots: grid(3, 3) },
+  { key: 'grid10', th: 'ตาราง 5×2', slots: grid(5, 2) },
+  { key: 'grid12', th: 'ตาราง 4×3', slots: grid(4, 3) },
+  { key: 'grid16', th: 'ตาราง 4×4', slots: grid(4, 4) },
 ];
 export const AUTO = 'auto';
-export const isTemplate = (k: string) => k === AUTO || TEMPLATES.some((t) => t.key === k);
+/** Free-form collage: images are moved, resized, layered and cropped by hand. */
+export const CANVAS = 'canvas';
+export const isTemplate = (k: string) => k === AUTO || k === CANVAS || TEMPLATES.some((t) => t.key === k);
+
+/** Width ÷ height of the printed board area (A3 landscape minus header and footer); the editor uses the same shape. */
+export const SHEET_RATIO = 1110 / 707;
+
+/** Frame for a new canvas image: 30 % of the sheet wide, its own aspect, cascading so new images do not cover each other. */
+export function defaultFrame(imgW: number | null, imgH: number | null, n: number) {
+  const aspect = imgW && imgH ? imgW / imgH : 4 / 3;
+  let w = 0.3;
+  let h = (w * SHEET_RATIO) / aspect;
+  if (h > 0.6) {
+    h = 0.6;
+    w = (h * aspect) / SHEET_RATIO;
+  }
+  const step = (n % 8) * 0.05;
+  return { x: Math.min(1 - w, 0.04 + step), y: Math.min(1 - h, 0.05 + step), w, h };
+}
+
+/** Canvas images bottom layer first, each with its frame (falling back to a default one). */
+export function canvasItems(images: MoodImage[]) {
+  return images
+    .slice()
+    .sort((a, b) => a.z - b.z || a.id - b.id)
+    .map((img, i) => ({ img, frame: img.x != null && img.y != null && img.w != null && img.h != null ? { x: img.x, y: img.y, w: img.w, h: img.h } : defaultFrame(img.img_w, img.img_h, i) }));
+}
+
+/**
+ * Where the whole image sits so that its crop window fills the frame (all in the same units as the frame).
+ * Used by the editor (CSS percentages) and the PDF (points).
+ */
+export function cropPlacement(frame: { x: number; y: number; w: number; h: number }, crop: { crop_x: number; crop_y: number; crop_w: number; crop_h: number }) {
+  const fullW = frame.w / crop.crop_w;
+  const fullH = frame.h / crop.crop_h;
+  return { x: frame.x - crop.crop_x * fullW, y: frame.y - crop.crop_y * fullH, w: fullW, h: fullH };
+}
 
 /** Automatic layout for n images: a lead image for small sets, then even rows. */
 export function autoSlots(n: number): Slot[] {
@@ -51,7 +94,7 @@ export function autoSlots(n: number): Slot[] {
 
 /** Slots of a board: the template's, or the automatic layout for its images. */
 export const slotsFor = (template: string, imageCount: number): Slot[] =>
-  template === AUTO ? autoSlots(imageCount) : (TEMPLATES.find((t) => t.key === template)?.slots ?? autoSlots(imageCount));
+  template === AUTO || template === CANVAS ? autoSlots(imageCount) : (TEMPLATES.find((t) => t.key === template)?.slots ?? autoSlots(imageCount));
 
 /** Pairs every slot with its image (auto: images in order; template: by slot number). */
 export function placeImages(template: string, images: MoodImage[]): { slot: Slot; index: number; image: MoodImage | null }[] {

@@ -26,6 +26,21 @@ export async function saveImage(buf: Buffer, opts: { maxDim?: number; quality?: 
   return { file, w: out.info.width, h: out.info.height };
 }
 
+/** Save a PNG (keeps transparency, e.g. a cut-out) inside UPLOAD_DIR. */
+export function savePng(png: Buffer): string {
+  const file = `${crypto.randomUUID()}.png`;
+  fs.writeFileSync(path.join(UPLOAD_DIR, file), png);
+  return file;
+}
+
+/** The uploaded plan turned clockwise by 0 / 90 / 180 / 270 degrees, saved as a new JPEG. */
+export async function rotatePlan(src: string, deg: number): Promise<Saved> {
+  const out = await sharp(src, { failOn: 'none' }).rotate(deg).jpeg({ quality: 90, chromaSubsampling: '4:4:4' }).toBuffer({ resolveWithObject: true });
+  const file = `${crypto.randomUUID()}.jpg`;
+  fs.writeFileSync(path.join(UPLOAD_DIR, file), out.data);
+  return { file, w: out.info.width, h: out.info.height };
+}
+
 /**
  * The plan as it should appear on a sheet: optional greyscale, then blended with white at `opacity`
  * (out = opacity·in + 255·(1−opacity)). Baked into the image rather than using PDF transparency,

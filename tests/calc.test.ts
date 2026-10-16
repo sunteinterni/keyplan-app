@@ -15,8 +15,8 @@ const bundle = (): Bundle => ({
   moodboards: [],
   project: { id: 1, name: 'T', client: '', location: '', project_no: '', designer: '', prepared_by: '', revision: '', doc_date: '2026-10-04', vat_rate: 7, voltage: 220, pf: 1, discount: 0, install_fee: 0, note: '', created_at: '', updated_at: '' },
   floors: [
-    { id: 1, project_id: 1, name: 'F1', sort: 0, plan_file: 'a', plan_w: 1000, plan_h: 500, mpp: 0.01, symbol_scale: 1, plan_gray: 1, plan_opacity: 0.5 },
-    { id: 2, project_id: 1, name: 'F2', sort: 1, plan_file: 'b', plan_w: 1000, plan_h: 500, mpp: null, symbol_scale: 1, plan_gray: 1, plan_opacity: 0.5 },
+    { id: 1, project_id: 1, name: 'F1', sort: 0, plan_file: 'a', plan_w: 1000, plan_h: 500, mpp: 0.01, symbol_scale: 1, plan_gray: 1, plan_opacity: 0.5, plan_orig: null, plan_rot: 0 },
+    { id: 2, project_id: 1, name: 'F2', sort: 1, plan_file: 'b', plan_w: 1000, plan_h: 500, mpp: null, symbol_scale: 1, plan_gray: 1, plan_opacity: 0.5, plan_orig: null, plan_rot: 0 },
   ],
   fixtures: [
     fx({ id: 1, code: 'LT1', socket: 'E27', bulbs: 6, watt_per_lamp: 10, price: 1000 }),

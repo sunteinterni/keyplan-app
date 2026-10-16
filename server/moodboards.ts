@@ -1,9 +1,10 @@
 // Mood boards API: boards per project, images placed in template slots or laid out automatically.
 import type { FastifyInstance } from 'fastify';
 import { db } from './db';
-import { saveImage } from './files';
+import { savePng, saveImage, uploadPath } from './files';
+import { CUTOUT_TOLERANCE, removeBackground, type CutoutLevel } from './cutout';
 import { bad, idOf, num, patch, row, str, touch, type Body, type Rule } from './common';
-import { AUTO, isTemplate, slotsFor } from '../shared/moodboard';
+import { AUTO, CANVAS, defaultFrame, isTemplate, slotsFor } from '../shared/moodboard';
 import type { MoodImage, Moodboard } from '../shared/types';
 
 const RULES: Record<string, Rule> = {
@@ -28,7 +29,10 @@ export function listMoodboards(pid: number): Moodboard[] {
 export function copyMoodboards(boards: Moodboard[], pid: number) {
   for (const b of boards) {
     const nb = Number(db.prepare('INSERT INTO moodboards (project_id, title, template, note, sort) VALUES (?, ?, ?, ?, ?)').run(pid, b.title, b.template, b.note, b.sort).lastInsertRowid);
-    for (const i of b.images) db.prepare('INSERT INTO moodboard_images (board_id, slot, file, caption) VALUES (?, ?, ?, ?)').run(nb, i.slot, i.file, i.caption);
+    for (const i of b.images) {
+      db.prepare(`INSERT INTO moodboard_images (board_id, slot, file, caption, img_w, img_h, x, y, w, h, z, crop_x, crop_y, crop_w, crop_h, cutout)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(nb, i.slot, i.file, i.caption, i.img_w, i.img_h, i.x, i.y, i.w, i.h, i.z, i.crop_x, i.crop_y, i.crop_w, i.crop_h, i.cutout);
+    }
   }
 }
 
@@ -87,7 +91,7 @@ export function registerMoodboardRoutes(api: FastifyInstance) {
     const given = num((req.query as { slot?: string }).slot);
     let slot: number;
     if (given != null && given >= 0) slot = Math.floor(given);
-    else if (bd.template === AUTO) slot = imgs.length;
+    else if (bd.template === AUTO || bd.template === CANVAS) slot = imgs.length;
     else {
       const count = slotsFor(bd.template, 0).length;
       const free = Array.from({ length: count }, (_, i) => i).find((i) => !imgs.some((x) => x.slot === i));
@@ -96,9 +100,13 @@ export function registerMoodboardRoutes(api: FastifyInstance) {
     }
     let saved;
     try { saved = await saveImage(await part.toBuffer(), { maxDim: 2000, quality: 86 }); } catch { throw bad('อ่านไฟล์ภาพไม่ได้ ใช้ JPG หรือ PNG', 422); }
+    // every image gets a canvas frame and a layer on top, so switching to canvas later shows it straight away
+    const frame = defaultFrame(saved.w, saved.h, imgs.length);
+    const z = (row<{ m: number }>('SELECT COALESCE(MAX(z), 0) + 1 AS m FROM moodboard_images WHERE board_id = ?', id) ?? { m: 1 }).m;
     db.transaction(() => {
       db.prepare('DELETE FROM moodboard_images WHERE board_id = ? AND slot = ?').run(id, slot);
-      db.prepare('INSERT INTO moodboard_images (board_id, slot, file) VALUES (?, ?, ?)').run(id, slot, saved.file);
+      db.prepare('INSERT INTO moodboard_images (board_id, slot, file, img_w, img_h, x, y, w, h, z) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+        .run(id, slot, saved.file, saved.w, saved.h, frame.x, frame.y, frame.w, frame.h, z);
     })();
     touch(bd.project_id);
     return { slot, file: saved.file };
@@ -124,8 +132,61 @@ export function registerMoodboardRoutes(api: FastifyInstance) {
   api.patch('/api/moodboard-images/:id', async (req) => {
     const img = row<MoodImage>('SELECT * FROM moodboard_images WHERE id = ?', idOf(req));
     if (!img) throw bad('ไม่พบรูป', 404);
-    patch('moodboard_images', img.id, { caption: (v) => str(v).slice(0, 120) }, (req.body ?? {}) as Body);
+    const b = (req.body ?? {}) as Body;
+    const frac = (lo: number, hi: number) => (v: unknown) => {
+      const n = num(v);
+      if (n == null || n < lo || n > hi) throw bad('ตำแหน่งหรือขนาดไม่ถูกต้อง');
+      return n;
+    };
+    patch('moodboard_images', img.id, {
+      caption: (v) => str(v).slice(0, 120),
+      // frame may hang a little off the sheet while dragging; the PDF clips it to the board
+      x: frac(-1, 2), y: frac(-1, 2), w: frac(0.02, 3), h: frac(0.02, 3),
+      crop_x: frac(0, 0.98), crop_y: frac(0, 0.98), crop_w: frac(0.02, 1), crop_h: frac(0.02, 1),
+    }, b);
+    const after = row<MoodImage>('SELECT * FROM moodboard_images WHERE id = ?', img.id)!;
+    if (after.crop_x + after.crop_w > 1.0001 || after.crop_y + after.crop_h > 1.0001) {
+      db.prepare('UPDATE moodboard_images SET crop_x = ?, crop_y = ?, crop_w = ?, crop_h = ? WHERE id = ?').run(img.crop_x, img.crop_y, img.crop_w, img.crop_h, img.id);
+      throw bad('ตัดภาพเกินขอบรูป');
+    }
+    touch(board(img.board_id).project_id);
     return { ok: true };
+  });
+
+  /** Layer order on a canvas board: front, back, up or down by one. Layers are kept as 1, 2, 3 … */
+  api.post('/api/moodboard-images/:id/layer', async (req) => {
+    const img = row<MoodImage>('SELECT * FROM moodboard_images WHERE id = ?', idOf(req));
+    if (!img) throw bad('ไม่พบรูป', 404);
+    const op = str(((req.body ?? {}) as Body).op);
+    if (!['front', 'back', 'up', 'down'].includes(op)) throw bad('คำสั่งไม่ถูกต้อง');
+    const order = (db.prepare('SELECT id FROM moodboard_images WHERE board_id = ? ORDER BY z, id').all(img.board_id) as { id: number }[]).map((r) => r.id);
+    const i = order.indexOf(img.id);
+    order.splice(i, 1);
+    const to = op === 'front' ? order.length : op === 'back' ? 0 : op === 'up' ? Math.min(order.length, i + 1) : Math.max(0, i - 1);
+    order.splice(to, 0, img.id);
+    db.transaction(() => order.forEach((id, k) => db.prepare('UPDATE moodboard_images SET z = ? WHERE id = ?').run(k + 1, id)))();
+    touch(board(img.board_id).project_id);
+    return { ok: true, z: to + 1 };
+  });
+
+  /** Remove the background (plain or studio backgrounds): makes a PNG cut-out; { off: true } goes back to the original. */
+  api.post('/api/moodboard-images/:id/cutout', async (req) => {
+    const img = row<MoodImage>('SELECT * FROM moodboard_images WHERE id = ?', idOf(req));
+    if (!img) throw bad('ไม่พบรูป', 404);
+    const b = (req.body ?? {}) as Body;
+    if (b.off === true) {
+      db.prepare('UPDATE moodboard_images SET cutout = NULL WHERE id = ?').run(img.id);
+      return { ok: true, cutout: null };
+    }
+    const level = (str(b.level) || 'medium') as CutoutLevel;
+    const tol = CUTOUT_TOLERANCE[level];
+    if (!tol) throw bad('ระดับไม่ถูกต้อง');
+    const { png, removed } = await removeBackground(uploadPath(img.file), tol);
+    if (removed < 0.01) throw bad('ไม่พบพื้นหลังสีเรียบรอบภาพ ลองระดับ “มาก” หรือใช้รูปที่พื้นหลังเรียบกว่านี้', 422);
+    const file = savePng(png);
+    db.prepare('UPDATE moodboard_images SET cutout = ? WHERE id = ?').run(file, img.id);
+    touch(board(img.board_id).project_id);
+    return { ok: true, cutout: file, removed: Math.round(removed * 100) };
   });
 
   api.delete('/api/moodboard-images/:id', async (req) => {
@@ -134,7 +195,7 @@ export function registerMoodboardRoutes(api: FastifyInstance) {
     const bd = board(img.board_id);
     db.transaction(() => {
       db.prepare('DELETE FROM moodboard_images WHERE id = ?').run(img.id);
-      if (bd.template === AUTO) renumber(bd.id);
+      if (bd.template === AUTO || bd.template === CANVAS) renumber(bd.id);
     })();
     touch(bd.project_id);
     return { ok: true };

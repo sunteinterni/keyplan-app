@@ -651,6 +651,13 @@ export function PlanTab({ bundle, reload, toast }: TabProps) {
 
           <aside className="inspector">
             <FloorPanel floor={floor} hasPlan={hasPlan} busy={busy} onUpload={doUpload} pdfPage={pdfPage} setPdfPage={setPdfPage} run={run} edit={edit}
+              onRotate={(deg) => void run(async () => {
+                // pins and lines turn with the plan on the server; earlier undo steps would point at the old positions
+                await api('POST', `/api/floors/${floor.id}/rotate`, { deg });
+                hist.clear();
+                bump();
+                setSels([]);
+              })}
               onDeleted={() => { hist.clear(); bump(); setFloorId(null); }} />
             {selP && (
               <PlacementPanel p={selP} fixtures={fxList.filter((f) => !isLineSymbol(f.symbol))} fixture={fixtures.get(selP.fixture_id)} circuits={bundle.circuits} edit={edit} onDelete={() => void deleteItem('p', selP.id).then(() => setSel(null))} />
@@ -682,7 +689,7 @@ type Run = (fn: () => Promise<unknown>) => Promise<void>;
 /** Performs an edit through the undo history; resolves to the new id for a create. */
 type EditFn = (e: Edit) => Promise<number | null>;
 
-function FloorPanel({ floor, hasPlan, busy, onUpload, pdfPage, setPdfPage, run, edit, onDeleted }: { floor: Floor; hasPlan: boolean; busy: boolean; onUpload: (f: File) => void; pdfPage: string; setPdfPage: (v: string) => void; run: Run; edit: EditFn; onDeleted: () => void }) {
+function FloorPanel({ floor, hasPlan, busy, onUpload, onRotate, pdfPage, setPdfPage, run, edit, onDeleted }: { floor: Floor; hasPlan: boolean; busy: boolean; onUpload: (f: File) => void; onRotate: (deg: number) => void; pdfPage: string; setPdfPage: (v: string) => void; run: Run; edit: EditFn; onDeleted: () => void }) {
   const look = (after: { plan_gray?: boolean; plan_opacity?: number }, label: string, merge?: string) =>
     void edit({ t: 'patch', e: 'floor', id: floor.id, before: { plan_gray: !!floor.plan_gray, plan_opacity: floor.plan_opacity }, after, label, merge });
   return (
@@ -696,6 +703,17 @@ function FloorPanel({ floor, hasPlan, busy, onUpload, pdfPage, setPdfPage, run, 
         <label className="muted small">PDF หน้า <input className="w50" type="number" min={1} value={pdfPage} onChange={(e) => setPdfPage(e.target.value)} /></label>
       </div>
       {hasPlan && <p className="muted small">การเปลี่ยนแปลนจะล้างสเกลของชั้นนี้ (ต้องตั้งสเกลใหม่) ส่วนหมุดที่วางไว้ยังอยู่</p>}
+      {hasPlan && (
+        <div className="field mt"><span>หมุนแปลน (หมุดและเส้นหมุนตาม สเกลคงเดิม)</span>
+          <div className="rotbtns">
+            {ROTATIONS.map((d) => (
+              <button key={d} className={`chipbtn ${(floor.plan_rot ?? 0) === d ? 'on' : ''}`} disabled={busy} onClick={() => (floor.plan_rot ?? 0) !== d && onRotate(d)} aria-label={`หมุนแปลน ${d} องศา`}>
+                <span className="rotglyph" style={{ transform: `rotate(${d}deg)` }}>⬆</span> {d}°
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       {hasPlan && (
         <div className="stylebox">
           <h4>การแสดงแปลน <span className="muted small">(เว็บและ PDF)</span></h4>

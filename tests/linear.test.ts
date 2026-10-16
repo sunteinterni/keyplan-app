@@ -43,7 +43,7 @@ test('linear fixtures are counted in pieces like other point symbols', () => {
     retired: [],
     moodboards: [],
     project: { id: 1, name: 'T', client: '', location: '', project_no: '', designer: '', prepared_by: '', revision: '', doc_date: '2026-10-05', vat_rate: 7, voltage: 220, pf: 1, discount: 0, install_fee: 0, note: '', created_at: '', updated_at: '' },
-    floors: [{ id: 1, project_id: 1, name: 'F1', sort: 0, plan_file: null, plan_w: 1000, plan_h: 500, mpp: 0.01, symbol_scale: 1, plan_gray: 1, plan_opacity: 0.5 }],
+    floors: [{ id: 1, project_id: 1, name: 'F1', sort: 0, plan_file: null, plan_w: 1000, plan_h: 500, mpp: 0.01, symbol_scale: 1, plan_gray: 1, plan_opacity: 0.5, plan_orig: null, plan_rot: 0 }],
     fixtures: [fx],
     placements: [1, 2, 3].map((id) => ({ id, project_id: 1, floor_id: 1, fixture_id: 1, x: id / 10, y: 0.5, rot: 90, circuit_id: null, circuit_order: 0 })),
     lines: [],

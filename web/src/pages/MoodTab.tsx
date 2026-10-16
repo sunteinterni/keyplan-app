@@ -1,12 +1,11 @@
 import { useRef, useState } from 'react';
 import { api, fileUrl, upload } from '../api';
-import { AUTO, TEMPLATES, placeImages, slotsFor, type Slot } from '../../../shared/moodboard';
+import { AUTO, CANVAS, SHEET_RATIO, TEMPLATES, placeImages, slotsFor, type Slot } from '../../../shared/moodboard';
+import { MoodCanvas } from './MoodCanvas';
 import type { Moodboard } from '../../../shared/types';
 import { ConfirmButton, Empty, Txt } from '../ui';
 import type { TabProps } from './common';
 
-/** Page shape of a mood board sheet in the PDF (A3 landscape minus header and footer), so the editor matches the print. */
-const SHEET_RATIO = 1110 / 707;
 
 /** Mood board (MB): pick a template and drop images into its slots, or add images and let the layout follow. Printed right after the cover. */
 export function MoodTab({ bundle, reload, toast }: TabProps) {
@@ -67,7 +66,8 @@ function MiniLayout({ slots, filled = 0, w = 44 }: { slots: Slot[]; filled?: num
 
 function Board({ mb, run, toast, onDeleted }: { mb: Moodboard; run: (fn: () => Promise<unknown>) => Promise<void>; toast: (m: string) => void; onDeleted: () => void }) {
   const set = (k: string) => (v: string) => run(() => api('PATCH', `/api/moodboards/${mb.id}`, { [k]: v }));
-  const auto = mb.template === AUTO;
+  const canvas = mb.template === CANVAS;
+  const auto = mb.template === AUTO || canvas;
   const placed = placeImages(mb.template, mb.images);
   const hidden = auto ? 0 : mb.images.filter((i) => i.slot >= placed.length).length;
   const many = useRef<HTMLInputElement>(null);
@@ -111,9 +111,13 @@ function Board({ mb, run, toast, onDeleted }: { mb: Moodboard; run: (fn: () => P
       <div className="card">
         <h4>รูปแบบหน้า</h4>
         <div className="tpls">
-          <button className={`tpl ${auto ? 'on' : ''}`} onClick={() => set('template')(AUTO)}>
+          <button className={`tpl ${mb.template === AUTO ? 'on' : ''}`} onClick={() => set('template')(AUTO)}>
             <MiniLayout slots={slotsFor(AUTO, Math.max(3, mb.images.length))} w={70} />
             <span>จัดหน้าอัตโนมัติ</span>
+          </button>
+          <button className={`tpl ${canvas ? 'on' : ''}`} onClick={() => set('template')(CANVAS)}>
+            <MiniLayout slots={[{ x: 0.05, y: 0.1, w: 0.45, h: 0.6 }, { x: 0.38, y: 0.3, w: 0.35, h: 0.55 }, { x: 0.65, y: 0.08, w: 0.3, h: 0.45 }]} filled={3} w={70} />
+            <span>Canvas · จัดเอง ซ้อนชั้นได้</span>
           </button>
           {TEMPLATES.map((t) => (
             <button key={t.key} className={`tpl ${mb.template === t.key ? 'on' : ''}`} onClick={() => set('template')(t.key)}>
@@ -122,7 +126,7 @@ function Board({ mb, run, toast, onDeleted }: { mb: Moodboard; run: (fn: () => P
             </button>
           ))}
         </div>
-        <p className="muted small">{auto ? 'เพิ่มรูปกี่รูปก็ได้ ระบบจัดหน้าให้ตามจำนวนรูป ลากรูปสลับลำดับได้' : 'ลากรูปจากเครื่องมาวางในช่อง หรือคลิกช่องว่างเพื่อเลือกไฟล์ ลากรูปไปช่องอื่นเพื่อสลับ'}</p>
+        <p className="muted small">{canvas ? 'วางรูปได้อิสระ ลากย้าย ย่อขยาย ซ้อนชั้นแบบ collage ตัดขอบภาพ และลบพื้นหลังได้' : auto ? 'เพิ่มรูปกี่รูปก็ได้ ระบบจัดหน้าให้ตามจำนวนรูป ลากรูปสลับลำดับได้' : 'ลากรูปจากเครื่องมาวางในช่อง หรือคลิกช่องว่างเพื่อเลือกไฟล์ ลากรูปไปช่องอื่นเพื่อสลับ'}</p>
         {hidden > 0 && <div className="banner">มี {hidden} รูปที่เกินจำนวนช่องของเทมเพลตนี้ จึงไม่แสดงและไม่พิมพ์ เลือกเทมเพลตที่มีช่องมากขึ้นหรือจัดหน้าอัตโนมัติ</div>}
         <div className="row gap wrap">
           <button className="btn primary" disabled={busy} onClick={() => many.current?.click()}>{busy ? 'กำลังอัปโหลด…' : '+ เพิ่มรูป (เลือกได้หลายรูป)'}</button>
@@ -131,6 +135,11 @@ function Board({ mb, run, toast, onDeleted }: { mb: Moodboard; run: (fn: () => P
         </div>
       </div>
 
+      {canvas ? (
+        <div onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); void put(images(e.dataTransfer.files), null); }}>
+          <MoodCanvas mb={mb} run={run} toast={toast} />
+        </div>
+      ) : (
       <div className="moodsheet" style={{ aspectRatio: String(SHEET_RATIO) }} onDragOver={(e) => auto && e.preventDefault()} onDrop={(e) => auto && onDrop(e, null)}>
         {placed.length === 0 && (
           <button className="moodslot empty" style={{ left: 0, top: 0, width: '100%', height: '100%' }} onClick={() => many.current?.click()}>
@@ -154,7 +163,7 @@ function Board({ mb, run, toast, onDeleted }: { mb: Moodboard; run: (fn: () => P
           return (
             <div key={image.id} className={`moodslot ${over === index ? 'over' : ''}`} style={style} draggable {...dropProps}
               onDragStart={(e) => e.dataTransfer.setData('text/x-kp-slot', String(image.slot))}>
-              <img src={fileUrl(image.file)} alt={image.caption || `รูปที่ ${index + 1}`} draggable={false} />
+              <img src={fileUrl(image.cutout ?? image.file)} alt={image.caption || `รูปที่ ${index + 1}`} draggable={false} />
               <div className="moodbar">
                 <Txt className="cap" value={image.caption} placeholder="คำอธิบาย (ไม่บังคับ)" onCommit={(v) => run(() => api('PATCH', `/api/moodboard-images/${image.id}`, { caption: v }))} />
                 <button className="btn small" title="เปลี่ยนรูป" onClick={() => { setTarget(auto ? image.slot : index); one.current?.click(); }}>เปลี่ยน</button>
@@ -164,6 +173,7 @@ function Board({ mb, run, toast, onDeleted }: { mb: Moodboard; run: (fn: () => P
           );
         })}
       </div>
+      )}
       <div className="card mt">
         <label className="field"><span>หมายเหตุใต้บอร์ด (พิมพ์ใน PDF)</span><Txt value={mb.note} placeholder="เช่น โทนสีหลัก วัสดุ และบรรยากาศ" onCommit={set('note')} /></label>
       </div>

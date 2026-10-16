@@ -3,7 +3,7 @@
 import type Database from 'better-sqlite3';
 import { BUILTIN_CATEGORIES } from '../shared/categories';
 
-export const SCHEMA_VERSION = 7;
+export const SCHEMA_VERSION = 8;
 
 const q = (s: string) => `'${s.replace(/'/g, "''")}'`;
 
@@ -123,6 +123,23 @@ const migrations: Record<number, string> = {
       UPDATE library SET code = cat || '-' || printf('%02d', (SELECT COUNT(*) FROM library l2 WHERE l2.cat = library.cat AND l2.id <= library.id));
       CREATE UNIQUE INDEX idx_lib_code ON library(code);
       CREATE TABLE library_retired (code TEXT PRIMARY KEY);`,
+  // plan rotation (the upload is kept, the shown plan is turned from it) and free-form canvas mood boards:
+  // position and size as fractions of the sheet, layer order, crop as fractions of the image, a cut-out PNG
+  8: `ALTER TABLE floors ADD COLUMN plan_orig TEXT;
+      ALTER TABLE floors ADD COLUMN plan_rot INTEGER NOT NULL DEFAULT 0;
+      UPDATE floors SET plan_orig = plan_file WHERE plan_file IS NOT NULL;
+      ALTER TABLE moodboard_images ADD COLUMN img_w INTEGER;
+      ALTER TABLE moodboard_images ADD COLUMN img_h INTEGER;
+      ALTER TABLE moodboard_images ADD COLUMN x REAL;
+      ALTER TABLE moodboard_images ADD COLUMN y REAL;
+      ALTER TABLE moodboard_images ADD COLUMN w REAL;
+      ALTER TABLE moodboard_images ADD COLUMN h REAL;
+      ALTER TABLE moodboard_images ADD COLUMN z INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE moodboard_images ADD COLUMN crop_x REAL NOT NULL DEFAULT 0;
+      ALTER TABLE moodboard_images ADD COLUMN crop_y REAL NOT NULL DEFAULT 0;
+      ALTER TABLE moodboard_images ADD COLUMN crop_w REAL NOT NULL DEFAULT 1;
+      ALTER TABLE moodboard_images ADD COLUMN crop_h REAL NOT NULL DEFAULT 1;
+      ALTER TABLE moodboard_images ADD COLUMN cutout TEXT;`,
 };
 
 /** Brings any database (new or older version) up to SCHEMA_VERSION (or an older target, for tests of the upgrade path). */

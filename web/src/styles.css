@@ -223,3 +223,20 @@ select.statussel { height: 34px; font-size: 13px; padding: 0 8px; }
 .seg { display: inline-flex; border: var(--line); border-radius: var(--r-sm); overflow: hidden; margin-bottom: 12px; }
 .seg button { font: inherit; font-weight: 600; border: 0; background: var(--white); padding: 0 16px; min-height: 40px; cursor: pointer; }
 .seg button + button { border-left: var(--line); } .seg button.on { background: var(--primary); }
+
+/* mood board canvas (collage) */
+.canvasgrid { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 16px; align-items: start; }
+.moodsheet.canvasmode { overflow: hidden; touch-action: none; user-select: none; background: var(--white); }
+.canvashint { position: absolute; inset: 0; display: grid; place-items: center; color: var(--ink-2); padding: 20px; text-align: center; border: 1.5px dashed var(--ink-2); margin: 12px; border-radius: var(--r-md); }
+.citem { position: absolute; cursor: move; }
+.citem .cclip { position: absolute; inset: 0; overflow: hidden; }
+.citem .cclip img { position: absolute; max-width: none; pointer-events: none; }
+.citem.on { outline: 2px solid var(--primary); outline-offset: 1px; }
+.sizehandle { position: absolute; right: -7px; bottom: -7px; width: 14px; height: 14px; background: var(--white); border: 2px solid var(--ink); border-radius: 2px; cursor: nwse-resize; }
+.crophandle { position: absolute; background: var(--ink); border: 2px solid var(--white); border-radius: 3px; }
+.crophandle.l, .crophandle.r { top: 50%; width: 10px; height: 36px; margin-top: -18px; cursor: ew-resize; } .crophandle.l { left: -6px; } .crophandle.r { right: -6px; }
+.crophandle.t, .crophandle.b { left: 50%; height: 10px; width: 36px; margin-left: -18px; cursor: ns-resize; } .crophandle.t { top: -6px; } .crophandle.b { bottom: -6px; }
+.canvaspanel { position: sticky; top: 0; }
+.toolgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.thumb.small { width: 32px; height: 32px; background: repeating-conic-gradient(var(--fill) 0 25%, var(--white) 0 50%) 50% / 10px 10px; }
+@media (max-width: 1100px) { .canvasgrid { grid-template-columns: 1fr; } .canvaspanel { position: static; } }

@@ -108,7 +108,7 @@ test('mood board layouts: templates have fixed slots, automatic layout fits the 
     assert.ok(Math.abs(s.reduce((a, x) => a + x.w * x.h, 0) - 1) < 1e-9, `auto ${n} fills the page`);
   }
   assert.equal(slotsFor('grid4', 9).length, 4);
-  const placed = placeImages('grid4', [{ id: 1, board_id: 1, slot: 2, file: 'a', caption: '' }]);
+  const placed = placeImages('grid4', [{ id: 1, board_id: 1, slot: 2, file: 'a', caption: '', img_w: null, img_h: null, x: null, y: null, w: null, h: null, z: 0, crop_x: 0, crop_y: 0, crop_w: 1, crop_h: 1, cutout: null }]);
   assert.deepEqual(placed.map((p) => p.image?.id ?? null), [null, null, 1, null]);
 });
 

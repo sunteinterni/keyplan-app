@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import fs from 'node:fs';
 import { db } from './db';
 import { currentUser, endSession, hashPassword, requireAdmin, requireUser, startSession, verifyPassword } from './auth';
-import { isPdf, pdfPageCount, pdfPageToPng, saveImage, uploadPath } from './files';
+import { isPdf, pdfPageCount, pdfPageToPng, rotatePlan, saveImage, uploadPath } from './files';
 import type { Bundle, Circuit, Fixture, Floor, LineEl, Placement, Project } from '../shared/types';
 import { defaultSymbol, isLineSymbol, symbolsFor } from '../shared/symbols';
 import { LIGHTING, categoryOf, isLengthUnit } from '../shared/categories';
@@ -201,7 +201,7 @@ export function registerRoutes(app: FastifyInstance) {
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(`${p.name} (สำเนา)`, p.client, p.location, p.project_no, p.designer, p.prepared_by, p.revision, p.doc_date, p.vat_rate, p.voltage, p.pf, p.discount, p.install_fee, p.note, req.user!.id);
         const nid = Number(r.lastInsertRowid);
         const fm = new Map<number, number>(), fx = new Map<number, number>(), cm = new Map<number, number>();
-        for (const f of src.floors) fm.set(f.id, Number(db.prepare('INSERT INTO floors (project_id, name, sort, plan_file, plan_w, plan_h, mpp, symbol_scale, plan_gray, plan_opacity) VALUES (?,?,?,?,?,?,?,?,?,?)').run(nid, f.name, f.sort, f.plan_file, f.plan_w, f.plan_h, f.mpp, f.symbol_scale, f.plan_gray, f.plan_opacity).lastInsertRowid));
+        for (const f of src.floors) fm.set(f.id, Number(db.prepare('INSERT INTO floors (project_id, name, sort, plan_file, plan_w, plan_h, mpp, symbol_scale, plan_gray, plan_opacity, plan_orig, plan_rot) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)').run(nid, f.name, f.sort, f.plan_file, f.plan_w, f.plan_h, f.mpp, f.symbol_scale, f.plan_gray, f.plan_opacity, f.plan_orig, f.plan_rot).lastInsertRowid));
         for (const f of src.fixtures) fx.set(f.id, Number(db.prepare(`INSERT INTO fixtures (project_id, code, cat, room, size, qty_manual, status, mark_size, model, name, finish, socket, bulbs, watt_per_lamp, watt_total, kelvin, ip, symbol, color, unit, price, supplier, note, photo_file, drawing_file, spec_qty, sort, library_id, library_synced_at, length_m)
           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(nid, f.code, f.cat, f.room, f.size, f.qty_manual, f.status, f.mark_size, f.model, f.name, f.finish, f.socket, f.bulbs, f.watt_per_lamp, f.watt_total, f.kelvin, f.ip, f.symbol, f.color, f.unit, f.price, f.supplier, f.note, f.photo_file, f.drawing_file, f.spec_qty, f.sort, f.library_id, f.library_synced_at, f.length_m).lastInsertRowid));
         copyMoodboards(src.moodboards, nid);
@@ -257,10 +257,42 @@ export function registerRoutes(app: FastifyInstance) {
       let saved;
       try { saved = await saveImage(buf, { maxDim: 3600, quality: 90 }); } catch { throw bad('อ่านไฟล์ภาพไม่ได้ ใช้ PNG, JPG หรือ PDF', 422); }
       // a new plan image invalidates the metric scale
-      db.prepare('UPDATE floors SET plan_file = ?, plan_w = ?, plan_h = ?, mpp = NULL WHERE id = ?').run(saved.file, saved.w, saved.h, id);
+      db.prepare('UPDATE floors SET plan_file = ?, plan_orig = ?, plan_rot = 0, plan_w = ?, plan_h = ?, mpp = NULL WHERE id = ?').run(saved.file, saved.file, saved.w, saved.h, id);
       touch(f.project_id);
       return { file: saved.file, w: saved.w, h: saved.h, pages };
     });
+    /**
+     * Turn the plan to 0 / 90 / 180 / 270° (clockwise from the upload). Pins, lines and their directions turn with it,
+     * so everything stays where it was drawn; the scale stays valid because distances do not change.
+     */
+    api.post('/api/floors/:id/rotate', async (req) => {
+      const id = idOf(req);
+      const f = row<Floor>('SELECT * FROM floors WHERE id = ?', id);
+      if (!f || !f.plan_file) throw bad('ชั้นนี้ยังไม่มีแปลน', 400);
+      const deg = num(((req.body ?? {}) as Body).deg);
+      if (deg == null || ![0, 90, 180, 270].includes(deg)) throw bad('หมุนได้ 0, 90, 180 หรือ 270 องศา');
+      const delta = (deg - (f.plan_rot ?? 0) + 360) % 360;
+      if (delta === 0) return { ok: true, rot: deg };
+      const orig = f.plan_orig ?? f.plan_file;
+      let saved;
+      try { saved = await rotatePlan(uploadPath(orig), deg); } catch { throw bad('หมุนแปลนไม่สำเร็จ', 422); }
+      // a point (x, y) on the plan, turned clockwise by delta around the plan centre (normalised 0..1)
+      const turn = (x: number, y: number): [number, number] => (delta === 90 ? [1 - y, x] : delta === 180 ? [1 - x, 1 - y] : [y, 1 - x]);
+      db.transaction(() => {
+        db.prepare('UPDATE floors SET plan_file = ?, plan_orig = ?, plan_rot = ?, plan_w = ?, plan_h = ? WHERE id = ?').run(saved.file, orig, deg, saved.w, saved.h, id);
+        for (const p of db.prepare('SELECT id, x, y, rot FROM placements WHERE floor_id = ?').all(id) as { id: number; x: number; y: number; rot: number }[]) {
+          const [x, y] = turn(p.x, p.y);
+          db.prepare('UPDATE placements SET x = ?, y = ?, rot = ? WHERE id = ?').run(x, y, (p.rot + delta) % 360, p.id);
+        }
+        for (const l of db.prepare('SELECT id, pts FROM lines WHERE floor_id = ?').all(id) as { id: number; pts: string }[]) {
+          const pts = (JSON.parse(l.pts) as [number, number][]).map(([x, y]) => turn(x, y));
+          db.prepare('UPDATE lines SET pts = ? WHERE id = ?').run(JSON.stringify(pts), l.id);
+        }
+      })();
+      touch(f.project_id);
+      return { ok: true, rot: deg };
+    });
+
     /** Set the drawing scale: two normalised points and their real distance in metres. */
     api.post('/api/floors/:id/scale', async (req) => {
       const id = idOf(req);
@@ -519,7 +551,7 @@ export function registerRoutes(app: FastifyInstance) {
     api.get('/files/:name', async (req, reply) => {
       const p = uploadPath((req.params as { name: string }).name);
       if (!fs.existsSync(p)) return reply.code(404).send({ error: 'ไม่พบไฟล์' });
-      return reply.header('Cache-Control', 'private, max-age=31536000, immutable').type('image/jpeg').send(fs.createReadStream(p));
+      return reply.header('Cache-Control', 'private, max-age=31536000, immutable').type(p.endsWith('.png') ? 'image/png' : 'image/jpeg').send(fs.createReadStream(p));
     });
   });
 }
