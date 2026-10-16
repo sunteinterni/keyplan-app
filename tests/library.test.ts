@@ -4,9 +4,9 @@ import { PREFIX_BY_SYMBOL, SPEC_FIELDS, hasLibraryUpdate, libraryChanges, nextCo
 import { SYMBOLS } from '../shared/symbols';
 import type { Fixture, LibraryItem } from '../shared/types';
 
-const spec = { model: 'M-1', name: 'ดาวน์ไลท์', finish: '', socket: 'GU10', bulbs: 1, watt_per_lamp: 7, watt_total: null, kelvin: 3000, ip: 'IP20', symbol: 'downlight', unit: 'ea', price: 450, supplier: 'ร้าน A', note: '', photo_file: 'a.jpg', drawing_file: null, length_m: null } as const;
+const spec = { cat: 'L', size: '', model: 'M-1', name: 'ดาวน์ไลท์', finish: '', socket: 'GU10', bulbs: 1, watt_per_lamp: 7, watt_total: null, kelvin: 3000, ip: 'IP20', symbol: 'downlight', unit: 'ea', price: 450, supplier: 'ร้าน A', note: '', photo_file: 'a.jpg', drawing_file: null, length_m: null } as const;
 const item = (o: Partial<LibraryItem> = {}): LibraryItem => ({ id: 7, ...spec, color: 'red', category: 'ดาวน์ไลท์', created_by: 1, created_at: '2026-10-01 10:00:00', updated_at: '2026-10-01 10:00:00', ...o });
-const fx = (o: Partial<Fixture> = {}): Fixture => ({ id: 1, project_id: 1, code: 'LT1', ...spec, color: 'blue', spec_qty: null, sort: 0, library_id: 7, library_synced_at: '2026-10-01 10:00:00', ...o });
+const fx = (o: Partial<Fixture> = {}): Fixture => ({ id: 1, project_id: 1, code: 'LT1', room: '', qty_manual: null, status: 'draft', ...spec, color: 'blue', spec_qty: null, sort: 0, library_id: 7, library_synced_at: '2026-10-01 10:00:00', ...o });
 
 test('no changes between a fresh copy and its library item (colour and code are the project’s own)', () => {
   assert.deepEqual(libraryChanges(fx(), item()), []);
@@ -35,9 +35,9 @@ test('update is offered only when the library was edited after the copy and the 
 });
 
 test('nextCode uses the brand format PREFIX-NN and continues old-style numbering', () => {
-  assert.equal(nextCode([]), 'LT-01');
+  assert.equal(nextCode([]), 'X-01', 'no prefix → X (other)');
   assert.equal(nextCode([], 'dl'), 'DL-01');
-  assert.equal(nextCode(['LT1', 'LT2', 'LT10', 'LN1', 'SP1']), 'LT-11', 'old LT1 style still counts');
+  assert.equal(nextCode(['LT1', 'LT2', 'LT10', 'LN1', 'SP1'], 'LT'), 'LT-11', 'old LT1 style still counts');
   assert.equal(nextCode(['DL-01', 'DL-03', 'WL-01'], 'DL'), 'DL-04', 'gaps are not reused');
   assert.equal(nextCode(['DL-99'], 'DL'), 'DL-100');
   assert.equal(nextCode(['EX-1 ', 'ex-02'], 'EX'), 'EX-03');
@@ -46,6 +46,7 @@ test('nextCode uses the brand format PREFIX-NN and continues old-style numbering
 });
 
 
-test('every plan symbol has a suggested prefix', () => {
-  for (const s of SYMBOLS) assert.ok(PREFIX_BY_SYMBOL[s.kind], s.kind);
+test('every lighting symbol has a suggested lighting prefix', () => {
+  for (const s of SYMBOLS.filter((x) => x.lighting)) assert.ok(PREFIX_BY_SYMBOL[s.kind], s.kind);
+  assert.equal(PREFIX_BY_SYMBOL.marker, undefined, 'items of other categories use their category prefix');
 });

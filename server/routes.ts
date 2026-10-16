@@ -4,9 +4,12 @@ import { db } from './db';
 import { currentUser, endSession, hashPassword, requireAdmin, requireUser, startSession, verifyPassword } from './auth';
 import { isPdf, pdfPageCount, pdfPageToPng, saveImage, uploadPath } from './files';
 import type { Bundle, Circuit, Fixture, Floor, LineEl, Placement, Project } from '../shared/types';
-import { isLineSymbol } from '../shared/symbols';
-import { FIXTURE_RULES, SYMBOL_KINDS, bad, clamp01, idOf, num, patch, row, str, touch, type Body, type Rule } from './common';
+import { defaultSymbol, isLineSymbol, symbolsFor } from '../shared/symbols';
+import { LIGHTING, categoryOf, isLengthUnit } from '../shared/categories';
+import { nextCode } from '../shared/library';
+import { FIXTURE_RULES, bad, catRule, clamp01, idOf, notRetired, num, patch, retiredCodes, row, str, touch, type Body, type Rule } from './common';
 import { registerLibraryRoutes } from './library';
+import { listCategories, registerCategoryRoutes } from './categories';
 import { buildPdf } from './pdf';
 import { buildXlsx } from './xlsx';
 
@@ -42,6 +45,8 @@ export function getBundle(pid: number): Bundle | null {
   if (!project) return null;
   return {
     project,
+    categories: listCategories(),
+    retired: (db.prepare('SELECT code FROM retired_codes WHERE project_id = ? ORDER BY code').all(pid) as { code: string }[]).map((r) => r.code),
     floors: db.prepare('SELECT * FROM floors WHERE project_id = ? ORDER BY sort, id').all(pid) as Floor[],
     fixtures: db.prepare('SELECT * FROM fixtures WHERE project_id = ? ORDER BY sort, id').all(pid) as Fixture[],
     placements: db.prepare('SELECT * FROM placements WHERE project_id = ? ORDER BY id').all(pid) as Placement[],
@@ -52,8 +57,12 @@ export function getBundle(pid: number): Bundle | null {
 
 function ownFixture(pid: number, fid: unknown): Fixture {
   const f = row<Fixture>('SELECT * FROM fixtures WHERE id = ? AND project_id = ?', Number(fid), pid);
-  if (!f) throw bad('ไม่พบรหัสโคมในโปรเจกต์นี้', 404);
+  if (!f) throw bad('ไม่พบรหัสนี้ในโปรเจกต์', 404);
   return f;
+}
+/** Circuits are for lighting only. */
+function wireable(f: Fixture, cid: number | null) {
+  if (cid != null && f.cat !== LIGHTING) throw bad(`${f.code} ไม่ใช่หมวดไฟส่องสว่าง จึงโยงวงจรไม่ได้`);
 }
 function ownCircuit(pid: number, cid: unknown): number | null {
   if (cid == null || cid === '') return null;
@@ -112,6 +121,7 @@ export function registerRoutes(app: FastifyInstance) {
   app.register(async (api) => {
     api.addHook('preHandler', requireUser);
     registerLibraryRoutes(api);
+    registerCategoryRoutes(api);
 
     /* ---------- users (admin) ---------- */
     api.get('/api/users', { preHandler: requireAdmin }, async () => db.prepare('SELECT id, email, name, role, created_at FROM users ORDER BY id').all());
@@ -154,6 +164,7 @@ export function registerRoutes(app: FastifyInstance) {
     api.get('/api/projects', async () =>
       db.prepare(`SELECT p.id, p.name, p.client, p.project_no, p.revision, p.doc_date, p.updated_at,
         (SELECT COUNT(*) FROM placements WHERE project_id = p.id) AS points,
+        (SELECT COUNT(*) FROM fixtures WHERE project_id = p.id) AS items,
         (SELECT COUNT(*) FROM floors WHERE project_id = p.id) AS floors
         FROM projects p ORDER BY p.updated_at DESC`).all());
     api.post('/api/projects', async (req) => {
@@ -188,8 +199,9 @@ export function registerRoutes(app: FastifyInstance) {
         const nid = Number(r.lastInsertRowid);
         const fm = new Map<number, number>(), fx = new Map<number, number>(), cm = new Map<number, number>();
         for (const f of src.floors) fm.set(f.id, Number(db.prepare('INSERT INTO floors (project_id, name, sort, plan_file, plan_w, plan_h, mpp, symbol_scale, plan_gray, plan_opacity) VALUES (?,?,?,?,?,?,?,?,?,?)').run(nid, f.name, f.sort, f.plan_file, f.plan_w, f.plan_h, f.mpp, f.symbol_scale, f.plan_gray, f.plan_opacity).lastInsertRowid));
-        for (const f of src.fixtures) fx.set(f.id, Number(db.prepare(`INSERT INTO fixtures (project_id, code, model, name, finish, socket, bulbs, watt_per_lamp, watt_total, kelvin, ip, symbol, color, unit, price, supplier, note, photo_file, drawing_file, spec_qty, sort, library_id, library_synced_at, length_m)
-          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(nid, f.code, f.model, f.name, f.finish, f.socket, f.bulbs, f.watt_per_lamp, f.watt_total, f.kelvin, f.ip, f.symbol, f.color, f.unit, f.price, f.supplier, f.note, f.photo_file, f.drawing_file, f.spec_qty, f.sort, f.library_id, f.library_synced_at, f.length_m).lastInsertRowid));
+        for (const f of src.fixtures) fx.set(f.id, Number(db.prepare(`INSERT INTO fixtures (project_id, code, cat, room, size, qty_manual, status, model, name, finish, socket, bulbs, watt_per_lamp, watt_total, kelvin, ip, symbol, color, unit, price, supplier, note, photo_file, drawing_file, spec_qty, sort, library_id, library_synced_at, length_m)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(nid, f.code, f.cat, f.room, f.size, f.qty_manual, f.status, f.model, f.name, f.finish, f.socket, f.bulbs, f.watt_per_lamp, f.watt_total, f.kelvin, f.ip, f.symbol, f.color, f.unit, f.price, f.supplier, f.note, f.photo_file, f.drawing_file, f.spec_qty, f.sort, f.library_id, f.library_synced_at, f.length_m).lastInsertRowid));
+        for (const code of src.retired) db.prepare('INSERT INTO retired_codes (project_id, code) VALUES (?, ?)').run(nid, code);
         for (const c of src.circuits) cm.set(c.id, Number(db.prepare('INSERT INTO circuits (project_id, name, area, breaker_a, note, sort) VALUES (?,?,?,?,?,?)').run(nid, c.name, c.area, c.breaker_a, c.note, c.sort).lastInsertRowid));
         for (const p2 of src.placements) db.prepare('INSERT INTO placements (project_id, floor_id, fixture_id, x, y, rot, circuit_id, circuit_order) VALUES (?,?,?,?,?,?,?,?)').run(nid, fm.get(p2.floor_id), fx.get(p2.fixture_id), p2.x, p2.y, p2.rot, p2.circuit_id ? cm.get(p2.circuit_id) : null, p2.circuit_order);
         for (const l of src.lines) db.prepare('INSERT INTO lines (project_id, floor_id, fixture_id, pts, heads, head_fixture_id, circuit_id, circuit_order) VALUES (?,?,?,?,?,?,?,?)').run(nid, fm.get(l.floor_id), fx.get(l.fixture_id), JSON.stringify(l.pts), l.heads, l.head_fixture_id ? fx.get(l.head_fixture_id) : null, l.circuit_id ? cm.get(l.circuit_id) : null, l.circuit_order);
@@ -264,14 +276,24 @@ export function registerRoutes(app: FastifyInstance) {
     /* ---------- fixtures ---------- */
     api.post('/api/projects/:id/fixtures', async (req) => {
       const pid = idOf(req);
+      if (!row('SELECT id FROM projects WHERE id = ?', pid)) throw bad('ไม่พบโปรเจกต์', 404);
       const b = (req.body ?? {}) as Body;
-      const symbol = SYMBOL_KINDS.includes(str(b.symbol)) ? str(b.symbol) : 'downlight';
-      const n = (row<{ c: number }>('SELECT COUNT(*) c FROM fixtures WHERE project_id = ?', pid) ?? { c: 0 }).c;
-      const code = str(b.code) || `LT${n + 1}`;
-      const r = db.prepare('INSERT INTO fixtures (project_id, code, symbol, unit, sort) VALUES (?, ?, ?, ?, ?)').run(pid, code, symbol, isLineSymbol(symbol as never) ? 'm' : 'ea', n);
+      // category: given, or lighting for callers that only send a symbol (Light Theory API)
+      const cat = categoryOf(listCategories(), b.cat == null ? LIGHTING : (catRule(b.cat) as string));
+      if (cat.archived) throw bad(`หมวด ${cat.name_th} ถูกเก็บถาวรแล้ว`);
+      const lighting = cat.prefix === LIGHTING;
+      const allowed = symbolsFor(lighting).map((x) => x.kind as string);
+      const symbol = allowed.includes(str(b.symbol)) ? str(b.symbol) : defaultSymbol(lighting, isLengthUnit(cat.unit));
+      const codes = (db.prepare('SELECT code FROM fixtures WHERE project_id = ?').all(pid) as { code: string }[]).map((x) => x.code);
+      const code = str(b.code) || nextCode([...codes, ...retiredCodes(pid)], cat.prefix);
+      notRetired(pid, code);
+      const unit = isLineSymbol(symbol as never) ? 'm' : cat.unit;
+      const r = db.prepare('INSERT INTO fixtures (project_id, code, cat, symbol, unit, sort) VALUES (?, ?, ?, ?, ?, ?)').run(pid, code, cat.prefix, symbol, unit, codes.length);
       const id = Number(r.lastInsertRowid);
       const rest = { ...b };
       delete rest.code;
+      delete rest.cat;
+      delete rest.symbol; // already chosen above, within the symbols this category allows
       patch('fixtures', id, FIXTURE_RULES, rest);
       touch(pid);
       return { id };
@@ -279,12 +301,22 @@ export function registerRoutes(app: FastifyInstance) {
     api.patch('/api/fixtures/:id', async (req) => {
       const id = idOf(req);
       const f = row<Fixture>('SELECT * FROM fixtures WHERE id = ?', id);
-      if (!f) throw bad('ไม่พบรหัสโคม', 404);
+      if (!f) throw bad('ไม่พบรหัสนี้', 404);
       const b = (req.body ?? {}) as Body;
+      const nextCat = 'cat' in b ? str(b.cat) : f.cat;
+      const allowed = symbolsFor(nextCat === LIGHTING).map((x) => x.kind as string);
+      if ('symbol' in b && !allowed.includes(str(b.symbol))) throw bad('สัญลักษณ์นี้ใช้ได้เฉพาะหมวดไฟส่องสว่าง');
+      // leaving Lighting takes the item out of every circuit, and a lighting point symbol becomes a plain marker
+      if (nextCat !== LIGHTING && f.cat === LIGHTING) {
+        db.prepare('UPDATE placements SET circuit_id = NULL, circuit_order = 0 WHERE fixture_id = ?').run(id);
+        db.prepare('UPDATE lines SET circuit_id = NULL, circuit_order = 0 WHERE fixture_id = ?').run(id);
+        if (!('symbol' in b) && !allowed.includes(f.symbol)) db.prepare("UPDATE fixtures SET symbol = 'marker' WHERE id = ?").run(id);
+      }
       if ('symbol' in b && isLineSymbol(f.symbol) !== isLineSymbol(str(b.symbol) as never)) {
         const used = (row<{ c: number }>('SELECT (SELECT COUNT(*) FROM placements WHERE fixture_id = ?) + (SELECT COUNT(*) FROM lines WHERE fixture_id = ?) AS c', id, id) ?? { c: 0 }).c;
         if (used) throw bad('เปลี่ยนระหว่างสัญลักษณ์จุดกับเส้นไม่ได้ เพราะรหัสนี้ถูกใช้บนแปลนแล้ว ลบจุด/เส้นก่อน', 409);
       }
+      if ('code' in b && str(b.code) !== f.code) notRetired(f.project_id, str(b.code));
       patch('fixtures', id, FIXTURE_RULES, b);
       touch(f.project_id);
       return { ok: true };
@@ -292,15 +324,18 @@ export function registerRoutes(app: FastifyInstance) {
     api.delete('/api/fixtures/:id', async (req) => {
       const id = idOf(req);
       const f = row<Fixture>('SELECT * FROM fixtures WHERE id = ?', id);
-      if (!f) throw bad('ไม่พบรหัสโคม', 404);
-      db.prepare('DELETE FROM fixtures WHERE id = ?').run(id);
+      if (!f) throw bad('ไม่พบรหัสนี้', 404);
+      db.transaction(() => {
+        db.prepare('DELETE FROM fixtures WHERE id = ?').run(id);
+        db.prepare('INSERT OR IGNORE INTO retired_codes (project_id, code) VALUES (?, ?)').run(f.project_id, f.code);
+      })();
       touch(f.project_id);
       return { ok: true };
     });
     api.post('/api/fixtures/:id/image', async (req) => {
       const id = idOf(req);
       const f = row<Fixture>('SELECT * FROM fixtures WHERE id = ?', id);
-      if (!f) throw bad('ไม่พบรหัสโคม', 404);
+      if (!f) throw bad('ไม่พบรหัสนี้', 404);
       const kind = (req.query as { kind?: string }).kind === 'drawing' ? 'drawing_file' : 'photo_file';
       const part = await (req as unknown as { file: () => Promise<{ toBuffer: () => Promise<Buffer> } | undefined> }).file();
       if (!part) throw bad('ไม่พบไฟล์');
@@ -328,6 +363,7 @@ export function registerRoutes(app: FastifyInstance) {
       const x = num(b.x), y = num(b.y);
       if (x == null || y == null) throw bad('พิกัดไม่ถูกต้อง');
       const cid = ownCircuit(fl.project_id, b.circuit_id);
+      wireable(fx, cid);
       // an explicit order restores a point to its old place in the wiring (undo); otherwise append
       const given = num(b.circuit_order);
       const order = cid ? (given ?? row<{ m: number }>('SELECT COALESCE(MAX(circuit_order), -1) + 1 AS m FROM placements WHERE circuit_id = ?', cid)?.m ?? 0) : 0;
@@ -340,12 +376,14 @@ export function registerRoutes(app: FastifyInstance) {
       const p = row<Placement>('SELECT * FROM placements WHERE id = ?', id);
       if (!p) throw bad('ไม่พบจุด', 404);
       const b = (req.body ?? {}) as Body;
+      const target = ownFixture(p.project_id, 'fixture_id' in b ? b.fixture_id : p.fixture_id);
       if ('fixture_id' in b) {
-        const fx = ownFixture(p.project_id, b.fixture_id);
-        if (isLineSymbol(fx.symbol)) throw bad('เปลี่ยนเป็นรหัสแบบเส้นไม่ได้');
+        if (isLineSymbol(target.symbol)) throw bad('เปลี่ยนเป็นรหัสแบบเส้นไม่ได้');
+        if (target.cat !== LIGHTING && !('circuit_id' in b)) db.prepare('UPDATE placements SET circuit_id = NULL, circuit_order = 0 WHERE id = ?').run(id);
       }
       if ('circuit_id' in b) {
         const cid = ownCircuit(p.project_id, b.circuit_id);
+        wireable(target, cid);
         const given = num(b.circuit_order);
         const order = !cid ? 0 : given != null ? given : cid !== p.circuit_id ? (row<{ m: number }>('SELECT COALESCE(MAX(circuit_order), -1) + 1 AS m FROM placements WHERE circuit_id = ?', cid)?.m ?? 0) : p.circuit_order;
         db.prepare('UPDATE placements SET circuit_id = ?, circuit_order = ? WHERE id = ?').run(cid, order, id);
@@ -370,9 +408,12 @@ export function registerRoutes(app: FastifyInstance) {
       const tx = db.transaction(() => {
         let order = cid ? (row<{ m: number }>('SELECT COALESCE(MAX(circuit_order), -1) + 1 AS m FROM placements WHERE circuit_id = ?', cid)?.m ?? 0) : 0;
         for (const id of b.placement_ids ?? []) {
-          db.prepare('UPDATE placements SET circuit_id = ?, circuit_order = ? WHERE id = ? AND project_id = ?').run(cid, cid ? order++ : 0, Number(id), pid);
+          const ok = db.prepare(`UPDATE placements SET circuit_id = ?, circuit_order = ? WHERE id = ? AND project_id = ?
+            AND (? IS NULL OR fixture_id IN (SELECT id FROM fixtures WHERE cat = '${LIGHTING}'))`).run(cid, cid ? order : 0, Number(id), pid, cid);
+          if (ok.changes && cid) order++;
         }
-        for (const id of b.line_ids ?? []) db.prepare('UPDATE lines SET circuit_id = ? WHERE id = ? AND project_id = ?').run(cid, Number(id), pid);
+        for (const id of b.line_ids ?? []) db.prepare(`UPDATE lines SET circuit_id = ? WHERE id = ? AND project_id = ?
+          AND (? IS NULL OR fixture_id IN (SELECT id FROM fixtures WHERE cat = '${LIGHTING}'))`).run(cid, Number(id), pid, cid);
       });
       tx();
       touch(pid);
@@ -386,7 +427,7 @@ export function registerRoutes(app: FastifyInstance) {
       if (!b) throw bad('ไม่พบโครงการ', 404);
       const q = req.query as { prices?: string };
       const buf = await buildPdf(b, { prices: q.prices !== '0' });
-      return reply.header('content-type', 'application/pdf').header('content-disposition', attach(`${b.project.name}-lighting.pdf`)).send(buf);
+      return reply.header('content-type', 'application/pdf').header('content-disposition', attach(`${b.project.name}-keyplan.pdf`)).send(buf);
     });
     api.get('/api/projects/:id/export.xlsx', async (req, reply) => {
       const b = getBundle(idOf(req));
@@ -404,6 +445,7 @@ export function registerRoutes(app: FastifyInstance) {
       const fx = ownFixture(fl.project_id, b.fixture_id);
       if (!isLineSymbol(fx.symbol)) throw bad('รหัสนี้เป็นสัญลักษณ์จุด ใช้เครื่องมือวางจุดแทน');
       const head = b.head_fixture_id ? ownFixture(fl.project_id, b.head_fixture_id).id : null;
+      wireable(fx, ownCircuit(fl.project_id, b.circuit_id));
       const r = db.prepare('INSERT INTO lines (project_id, floor_id, fixture_id, pts, heads, head_fixture_id, circuit_id, circuit_order) VALUES (?,?,?,?,?,?,?,?)').run(
         fl.project_id, fid, fx.id, JSON.stringify(normPts(b.pts)), Math.max(0, Math.round(num(b.heads) ?? 0)), head, ownCircuit(fl.project_id, b.circuit_id), num(b.circuit_order) ?? 0);
       touch(fl.project_id);
@@ -417,7 +459,7 @@ export function registerRoutes(app: FastifyInstance) {
       const b = (req.body ?? {}) as Body;
       if ('fixture_id' in b && !isLineSymbol(ownFixture(pid, b.fixture_id).symbol)) throw bad('เปลี่ยนเป็นรหัสแบบจุดไม่ได้');
       if ('head_fixture_id' in b && b.head_fixture_id) ownFixture(pid, b.head_fixture_id);
-      if ('circuit_id' in b) ownCircuit(pid, b.circuit_id);
+      if ('circuit_id' in b) wireable(ownFixture(pid, 'fixture_id' in b ? b.fixture_id : l.fixture_id), ownCircuit(pid, b.circuit_id));
       patch('lines', id, {
         fixture_id: (v) => Number(v), pts: (v) => JSON.stringify(normPts(v)), heads: (v) => Math.max(0, Math.round(num(v) ?? 0)),
         head_fixture_id: (v) => (v ? Number(v) : null), circuit_id: (v) => (v ? Number(v) : null), circuit_order: (v) => num(v) ?? 0,

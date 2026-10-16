@@ -2,6 +2,8 @@
 import type { FastifyRequest } from 'fastify';
 import { db } from './db';
 import { SYMBOLS } from '../shared/symbols';
+import { isUnit } from '../shared/categories';
+import { isStatus } from '../shared/brand';
 
 export type Body = Record<string, unknown>;
 export const bad = (msg: string, code = 400) => Object.assign(new Error(msg), { statusCode: code });
@@ -33,13 +35,29 @@ export const touch = (pid: number) => db.prepare("UPDATE projects SET updated_at
 export const row = <T>(sql: string, ...p: unknown[]) => db.prepare(sql).get(...p) as T | undefined;
 
 export const SYMBOL_KINDS = SYMBOLS.map((s) => s.kind as string);
+/** A category prefix that exists (archived ones too, so existing items keep theirs). */
+export const catRule: Rule = (v) => {
+  const p = str(v);
+  if (!row('SELECT id FROM categories WHERE prefix = ?', p)) throw bad('ไม่พบหมวดนี้');
+  return p;
+};
 export const FIXTURE_RULES: Record<string, Rule> = {
-  code: (v) => { const s = str(v); if (!s) throw bad('ต้องระบุรหัสโคม'); return s; },
-  model: str, name: str, finish: str, socket: str, ip: str, supplier: str, note: str,
+  code: (v) => { const s = str(v); if (!s) throw bad('ต้องระบุรหัส'); return s; },
+  cat: catRule,
+  model: str, name: str, size: str, room: str, finish: str, socket: str, ip: str, supplier: str, note: str,
+  qty_manual: (v) => { const n = num(v); if (n != null && n < 0) throw bad('จำนวนต้องไม่ติดลบ'); return n == null ? null : Math.round(n * 100) / 100; },
+  status: (v) => { if (!isStatus(str(v))) throw bad('สถานะไม่ถูกต้อง'); return str(v); },
   bulbs: num, watt_per_lamp: num, watt_total: num, kelvin: (v) => { const n = num(v); return n == null ? null : Math.round(n); },
   symbol: (v) => { if (!SYMBOL_KINDS.includes(str(v))) throw bad('รูปแบบสัญลักษณ์ไม่ถูกต้อง'); return str(v); },
   color: (v) => { if (!['red', 'blue', 'green'].includes(str(v))) throw bad('สีไม่ถูกต้อง'); return str(v); },
-  unit: (v) => (str(v) === 'm' ? 'm' : 'ea'),
+  unit: (v) => (isUnit(str(v)) ? str(v) : 'ea'),
   price: num, spec_qty: num, sort: (v) => num(v) ?? 0,
   length_m: (v) => { const n = num(v); return n != null && n > 0 && n <= 20 ? n : null; },
 };
+
+/** Codes of deleted items in a project. */
+export const retiredCodes = (pid: number) => (db.prepare('SELECT code FROM retired_codes WHERE project_id = ?').all(pid) as { code: string }[]).map((r) => r.code);
+/** A deleted item's code is never issued again (KEYPLAN rule). */
+export function notRetired(pid: number, code: string) {
+  if (row('SELECT 1 FROM retired_codes WHERE project_id = ? AND code = ?', pid, code)) throw bad(`รหัส ${code} เคยใช้กับรายการที่ลบไปแล้ว ใช้ซ้ำไม่ได้`, 409);
+}

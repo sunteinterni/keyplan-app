@@ -6,10 +6,10 @@ export function ExportTab({ bundle }: TabProps) {
   const list = issues(bundle);
   return (
     <main className="page narrow">
-      <h2>Export</h2>
+      <div className="pagehead"><div><div className="eyebrow">OUT · Export</div><h1>Export</h1><p className="sub">เอกสารสำหรับลูกค้าและฝ่ายจัดซื้อ ตรวจรายการด้านล่างก่อนส่ง</p></div></div>
       <section className="card">
         <h3>PDF A3 แนวนอน</h3>
-        <p className="muted">แปลนต่อชั้น + Legend, หน้าโยงวงจร, สเปคชีท, Load Schedule และใบเสนอราคา (ตัวหนังสือเป็นข้อความจริง เลือก/ค้นหาได้)</p>
+        <p className="muted">ปก แปลนต่อชั้นพร้อม Legend สเปคชีทรายการ ใบเสนอราคาแยกตามหมวด และสำหรับงานไฟ: หน้าโยงวงจรกับ Load Schedule (ตัวหนังสือเป็นข้อความจริง ค้นหาได้)</p>
         <div className="row gap wrap">
           <a className="btn primary" href={`/api/projects/${id}/export.pdf?prices=1`}>⬇ PDF พร้อมราคา / ใบเสนอราคา</a>
           <a className="btn" href={`/api/projects/${id}/export.pdf?prices=0`}>⬇ PDF ไม่แสดงราคา</a>
@@ -17,7 +17,7 @@ export function ExportTab({ bundle }: TabProps) {
       </section>
       <section className="card">
         <h3>Excel</h3>
-        <p className="muted">BOQ และ Load Schedule สำหรับแก้ไขต่อหรือส่งฝ่ายจัดซื้อ</p>
+        <p className="muted">BOQ แยกตามหมวด (และ Load Schedule ถ้ามีวงจรไฟ) สำหรับแก้ไขต่อหรือส่งฝ่ายจัดซื้อ</p>
         <a className="btn" href={`/api/projects/${id}/export.xlsx`}>⬇ Excel (.xlsx)</a>
       </section>
       <section className="card">

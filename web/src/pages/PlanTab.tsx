@@ -4,9 +4,10 @@ import { historyFor, snapLine, snapPlacement, type Edit, type Single } from '../
 import { boxOf, has, inBox, shift, toggle, union, wiringOrder, type Item } from '../selection';
 import { BRAND, SELECT_HALO, WIRE_COLORS, WIRE_NONE, onColor } from '../../../shared/brand';
 import { lineLengthM, quantities, byCode } from '../../../shared/calc';
+import { LIGHTING, categoryOf, sortCategories } from '../../../shared/categories';
 import { COLORS, COLOR_LABEL, LABEL_COLORS, SYMBOLS, linearLengthPx, baseRadius, isLineSymbol, lineStyle, pointSymbol, pointsAlong, symbolMeta, wiringPath } from '../../../shared/symbols';
 import type { ColorKey, Fixture, Floor, LineEl, Placement } from '../../../shared/types';
-import { ConfirmButton, Empty, FixtureChip, Prims, SymbolIcon, Txt, qty } from '../ui';
+import { CatIcon, ConfirmButton, Empty, FixtureChip, Prims, SymbolIcon, Txt, qty } from '../ui';
 import type { TabProps } from './common';
 
 type Tool = 'select' | 'place' | 'line' | 'scale' | 'wire';
@@ -44,7 +45,12 @@ export function PlanTab({ bundle, reload, toast }: TabProps) {
   const dragRef = useRef<Drag | null>(null);
 
   const fixtures = useMemo(() => new Map(bundle.fixtures.map((f) => [f.id, f])), [bundle.fixtures]);
-  const fxList = useMemo(() => bundle.fixtures.slice().sort(byCode), [bundle.fixtures]);
+  const cats = useMemo(() => sortCategories(bundle.categories), [bundle.categories]);
+  const fxList = useMemo(() => {
+    const rank = new Map(cats.map((c, i) => [c.prefix, i]));
+    return bundle.fixtures.slice().sort((a, b) => (rank.get(a.cat) ?? 999) - (rank.get(b.cat) ?? 999) || byCode(a, b));
+  }, [bundle.fixtures, cats]);
+  const hasLighting = bundle.fixtures.some((f) => f.cat === LIGHTING) || bundle.circuits.length > 0;
   const q = useMemo(() => quantities(bundle), [bundle]);
 
   const iw = floor?.plan_w ?? 1000;
@@ -263,11 +269,11 @@ export function PlanTab({ bundle, reload, toast }: TabProps) {
     }
     if (e.button !== 0) return;
     if (tool === 'place') {
-      if (!activeFx) return toast('เลือกรหัสโคมทางซ้ายก่อน');
+      if (!activeFx) return toast('เลือกรหัสทางซ้ายก่อน');
       const fx = fixtures.get(activeFx);
       if (!fx || isLineSymbol(fx.symbol)) return;
       const [x, y] = norm(pt);
-      void edit({ t: 'create', e: 'p', floor: floor.id, snap: { fixture_id: activeFx, x, y, rot: 0, circuit_id: null }, label: `วางโคม ${fx.code}` }).then((id) => {
+      void edit({ t: 'create', e: 'p', floor: floor.id, snap: { fixture_id: activeFx, x, y, rot: 0, circuit_id: null }, label: `วางหมุด ${fx.code}` }).then((id) => {
         if (id) setSel({ k: 'p', id });
       });
     } else if (tool === 'line') {
@@ -437,15 +443,15 @@ export function PlanTab({ bundle, reload, toast }: TabProps) {
         )}
       </div>
       {!floor ? (
-        <Empty motif="strip">ยังไม่มีชั้น — กด “+ เพิ่มชั้น” เพื่อเริ่ม แล้วอัปโหลดแปลนของลูกค้า</Empty>
+        <Empty>ยังไม่มีชั้น — กด “+ เพิ่มชั้น” เพื่อเริ่ม แล้วอัปโหลดแปลนของลูกค้า</Empty>
       ) : (
         <div className="editor-body">
           <aside className="tools">
             <div className="toolrow">
               {toolBtn('select', '↖ เลือก/ย้าย', 'คลิกเลือก ลากย้าย ลากพื้นที่ว่างเพื่อเลื่อนแปลน เลื่อนล้อเมาส์เพื่อซูม')}
-              {toolBtn('place', '● วางโคม', 'เลือกรหัสโคม แล้วคลิกบนแปลน')}
+              {toolBtn('place', '● วางหมุด', 'เลือกรหัสทางซ้าย แล้วคลิกบนแปลน')}
               {toolBtn('line', '╱ วาดเส้น', 'คลิกทีละจุด ดับเบิลคลิกหรือ Enter เพื่อจบ')}
-              {toolBtn('wire', '⌁ โยงวงจร', 'เลือกวงจร แล้วคลิกโคมตามลำดับ (คลิกซ้ำเพื่อเอาออก)')}
+              {hasLighting && toolBtn('wire', '⌁ โยงวงจร', 'เฉพาะหมวดไฟ L: เลือกวงจร แล้วคลิกโคมตามลำดับ (คลิกซ้ำเพื่อเอาออก)')}
               {toolBtn('scale', '📏 ตั้งสเกล', 'คลิกสองจุดที่รู้ระยะจริง')}
             </div>
             <div className="toolrow undo">
@@ -480,17 +486,18 @@ export function PlanTab({ bundle, reload, toast }: TabProps) {
               </>
             ) : (
               <>
-                <h4>รหัสโคม</h4>
+                <h4>รหัสรายการ</h4>
                 <div className="list">
-                  {fxList.map((f) => (
+                  {fxList.map((f, i) => [
+                    f.cat !== fxList[i - 1]?.cat && <div key={`h${f.cat}`} className="listgroup"><CatIcon icon={categoryOf(cats, f.cat).icon} size={16} />{f.cat} · {categoryOf(cats, f.cat).name_th}</div>,
                     <button key={f.id} className={`li ${f.id === activeFx && (tool === 'place' || tool === 'line') ? 'on' : ''}`} onClick={() => pickFixture(f)}>
                       <SymbolIcon kind={f.symbol} color={f.color} />
                       <span className="code">{f.code}</span>
                       <span className="grow trunc small">{f.name || f.model}</span>
                       <span className="qty">{qty(q[f.id]?.perFloor[floor.id] ?? 0)}</span>
-                    </button>
-                  ))}
-                  {fxList.length === 0 && <div className="muted small">ยังไม่มีรหัสโคม — ไปที่แท็บ “สเปคโคม” เพื่อเพิ่ม</div>}
+                    </button>,
+                  ])}
+                  {fxList.length === 0 && <div className="muted small">ยังไม่มีรายการ ไปที่แท็บ “รายการ” เพื่อเพิ่ม</div>}
                 </div>
               </>
             )}
@@ -617,8 +624,8 @@ export function PlanTab({ bundle, reload, toast }: TabProps) {
                   )}
                 </svg>
                 <div className="hint">
-                  {tool === 'select' && 'คลิกเลือก · Shift+คลิก/Shift+ลากกรอบ เลือกหลายจุด · ลากโคมเพื่อย้าย · ลากพื้นที่ว่างเพื่อเลื่อน · ล้อเมาส์ซูม · Delete ลบ · Ctrl+Z ย้อนกลับ'}
-                  {tool === 'place' && (activeF ? `คลิกบนแปลนเพื่อวาง ${activeF.code} — Esc เพื่อออก` : 'เลือกรหัสโคมทางซ้ายก่อน')}
+                  {tool === 'select' && 'คลิกเลือก · Shift+คลิก/Shift+ลากกรอบ เลือกหลายจุด · ลากหมุดเพื่อย้าย · ลากพื้นที่ว่างเพื่อเลื่อน · ล้อเมาส์ซูม · Delete ลบ · Ctrl+Z ย้อนกลับ'}
+                  {tool === 'place' && (activeF ? `คลิกบนแปลนเพื่อวาง ${activeF.code} · Esc เพื่อออก` : 'เลือกรหัสทางซ้ายก่อน')}
                   {tool === 'line' && (activeF ? `คลิกเพื่อเพิ่มจุด · ดับเบิลคลิก/Enter จบ · Esc ยกเลิก (${activeF.code})` : 'เลือกรหัสแบบเส้น (ไฟเส้น/ราง) ทางซ้ายก่อน')}
                   {tool === 'wire' && 'คลิกโคมตามลำดับการเดินสาย — คลิกซ้ำเพื่อเอาออกจากวงจร'}
                   {tool === 'scale' && 'คลิกสองจุดที่รู้ระยะจริง (เช่น ความกว้างห้อง) แล้วกรอกระยะเป็นเมตร'}
@@ -650,7 +657,7 @@ export function PlanTab({ bundle, reload, toast }: TabProps) {
                 onDelete={() => void deleteItems(sels).then(() => setSels([]))} onClear={() => setSels([])}
               />
             )}
-            {sels.length === 0 && <div className="card small muted">คลิกโคมหรือเส้นบนแปลนเพื่อแก้ไข เปลี่ยนรหัสโคม หมุนทิศ หรือย้ายวงจร — Shift+คลิก หรือ Shift+ลากกรอบ เพื่อเลือกหลายจุด, Ctrl+A เลือกทั้งชั้น</div>}
+            {sels.length === 0 && <div className="card small muted">คลิกหมุดหรือเส้นบนแปลนเพื่อแก้ไข เปลี่ยนรหัส หมุนทิศ หรือย้ายวงจร (เฉพาะไฟ) · Shift+คลิก หรือ Shift+ลากกรอบ เพื่อเลือกหลายจุด, Ctrl+A เลือกทั้งชั้น</div>}
           </aside>
         </div>
       )}
@@ -681,7 +688,7 @@ function FloorPanel({ floor, hasPlan, busy, onUpload, pdfPage, setPdfPage, run, 
         </label>
         <label className="muted small">PDF หน้า <input className="w50" type="number" min={1} value={pdfPage} onChange={(e) => setPdfPage(e.target.value)} /></label>
       </div>
-      {hasPlan && <p className="muted small">การเปลี่ยนแปลนจะล้างสเกลของชั้นนี้ (ต้องตั้งสเกลใหม่) ส่วนโคมที่วางไว้ยังอยู่</p>}
+      {hasPlan && <p className="muted small">การเปลี่ยนแปลนจะล้างสเกลของชั้นนี้ (ต้องตั้งสเกลใหม่) ส่วนหมุดที่วางไว้ยังอยู่</p>}
       {hasPlan && (
         <div className="stylebox">
           <h4>การแสดงแปลน <span className="muted small">(เว็บและ PDF)</span></h4>
@@ -699,7 +706,7 @@ function FloorPanel({ floor, hasPlan, busy, onUpload, pdfPage, setPdfPage, run, 
           )}
         </div>
       )}
-      <ConfirmButton label="ลบชั้นนี้" confirm="ยืนยัน: ลบชั้นพร้อมโคมทั้งหมด" onConfirm={() => void run(async () => { await api('DELETE', `/api/floors/${floor.id}`); onDeleted(); })} />
+      <ConfirmButton label="ลบชั้นนี้" confirm="ยืนยัน: ลบชั้นพร้อมหมุดทั้งหมด" onConfirm={() => void run(async () => { await api('DELETE', `/api/floors/${floor.id}`); onDeleted(); })} />
     </div>
   );
 }
@@ -746,7 +753,7 @@ function PlacementPanel({ p, fixtures, fixture, circuits, edit, onDelete }: { p:
   return (
     <div className="card">
       <div className="row between"><h4>จุดที่เลือก {fixture && <FixtureChip f={fixture} />}</h4></div>
-      <label className="field"><span>เปลี่ยนโคม (รหัส)</span>
+      <label className="field"><span>เปลี่ยนรหัส</span>
         <select value={p.fixture_id} onChange={(e) => set({ fixture_id: p.fixture_id }, { fixture_id: Number(e.target.value) }, 'เปลี่ยนรหัส')}>
           {fixtures.map((f) => <option key={f.id} value={f.id}>{f.code} — {f.name || f.model}</option>)}
         </select>
@@ -785,7 +792,7 @@ function LinePanel({ l, floor, fixtures, circuits, edit, onDelete }: { l: LineEl
           <label className="field"><span>จำนวนหัวสปอตบนราง</span>
             <Txt type="number" value={l.heads} onCommit={(v) => set({ heads: l.heads }, { heads: Number(v) || 0 }, 'จำนวนหัวสปอต')} />
           </label>
-          <label className="field"><span>รหัสโคมของหัวสปอต</span>
+          <label className="field"><span>รหัสของหัวสปอต</span>
             <select value={l.head_fixture_id ?? ''} onChange={(e) => set({ head_fixture_id: l.head_fixture_id }, { head_fixture_id: e.target.value ? Number(e.target.value) : null }, 'รหัสหัวสปอต')}>
               <option value="">— ไม่ระบุ —</option>
               {fixtures.filter((x) => !isLineSymbol(x.symbol)).map((x) => <option key={x.id} value={x.id}>{x.code} — {x.name || x.model}</option>)}
@@ -852,7 +859,7 @@ function MultiPanel({ points, lines, fixtures, circuits, project, codeOf, editMa
         </select>
       </label>
       {points.length > 0 && (
-        <label className="field"><span>เปลี่ยนรหัสโคมของ {points.length} จุด</span>
+        <label className="field"><span>เปลี่ยนรหัสของ {points.length} จุด</span>
           <select value="" onChange={(e) => recode('p', e.target.value)}>
             <option value="">— เลือกรหัส —</option>
             {fixtures.filter((f) => !isLineSymbol(f.symbol)).map((f) => <option key={f.id} value={f.id}>{f.code} — {f.name || f.model}</option>)}

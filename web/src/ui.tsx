@@ -1,53 +1,67 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
-import { BRAND, LOCKUP, LOGO_ON, MARK, MOTIFS, STROKE, WORDMARK, type LogoOn, type MotifName, type StrokeWeight } from '../../shared/brand';
+import { useEffect, useState, type ReactNode } from 'react';
+import { STATUS_STYLE, type Status } from '../../shared/brand';
+import { ICON_PATHS, MARK_SHAPES, WORDMARK_PATH } from '../../shared/brand-assets';
 import { COLORS, DEFAULT_LINEAR_M, LINEAR_LENGTHS, isLineSymbol, lineStyle, pointSymbol, type Prim } from '../../shared/symbols';
 import type { ColorKey, Fixture, SymbolKind } from '../../shared/types';
 
-/** The Light Theory mark (ring + crosshair), h px square, coloured for the background it sits on. */
-export function Mark({ h = 32, on = 'light' }: { h?: number; on?: LogoOn }) {
-  const c = LOGO_ON[on];
+/** The KEYPLAN room-plan mark (official geometry, brand-assets.ts), h px square. mono = Charcoal only. */
+export function Mark({ h = 32, mono }: { h?: number; mono?: boolean }) {
   return (
-    <svg width={h} height={h} viewBox={`0 0 ${MARK.viewBox} ${MARK.viewBox}`} aria-hidden fill="none" strokeLinecap="round" strokeWidth={MARK.strokeWidth}>
-      <path d={MARK.ring} stroke={c.ring} />
-      <path d={MARK.cross} stroke={c.cross} />
+    <svg width={h} height={h} viewBox="0 0 100 100" aria-hidden>
+      {MARK_SHAPES.map((m, i) =>
+        m.t === 'rect' ? <rect key={i} x={m.x} y={m.y} width={m.w} height={m.h} rx={m.rx || undefined} fill={mono ? '#1F1F1F' : m.fill} />
+        : m.t === 'circle' ? <circle key={i} cx={m.cx} cy={m.cy} r={m.r} fill={mono ? '#1F1F1F' : m.fill} />
+        : <path key={i} d={m.d} fill="none" stroke={m.stroke} strokeWidth={m.sw} />,
+      )}
     </svg>
-  );
-}
-
-/** Primary lockup: mark + two-line "light / theory" wordmark. h = mark height in px (min 30). */
-export function Logo({ h = 32, on = 'light' }: { h?: number; on?: LogoOn }) {
-  const fs = h * LOCKUP.fontSize;
-  return (
-    <span className="logo" role="img" aria-label="light theory" style={{ gap: h * LOCKUP.gap, color: LOGO_ON[on].word }}>
-      <Mark h={h} on={on} />
-      <span className="wordmark" style={{ fontSize: fs, letterSpacing: `${WORDMARK.tracking}em`, fontWeight: WORDMARK.weight, lineHeight: LOCKUP.leading }} aria-hidden>
-        {WORDMARK.lines[0]}
-        <br />
-        {WORDMARK.lines[1]}
-      </span>
-    </span>
   );
 }
 
 /**
- * A hand-drawn element of the graphic language. Lines keep one of the three brand weights
- * (fine 2.5 / standard 4.5 / bold 7 px) whatever the size. Decorative only (aria-hidden).
+ * Horizontal lockup: mark + KEYPLAN wordmark, drawn from the official SVG paths (never retyped).
+ * h = mark height in px. Below 160 px lockup width the guideline asks for the mark alone.
  */
-export function Motif({ name, width, weight = width >= 120 ? 'standard' : 'fine', className, style }: { name: MotifName; width: number; weight?: StrokeWeight; className?: string; style?: CSSProperties }) {
-  const m = MOTIFS[name];
+export function Logo({ h = 32 }: { h?: number }) {
+  const w = (WORDMARK_PATH.viewW * h) / 100;
+  if (w < 160) return <span className="logo" role="img" aria-label="KEYPLAN"><Mark h={h} /></span>;
   return (
-    <svg className={className} style={style} width={width} height={(width * m.h) / m.w} viewBox={`0 0 ${m.w} ${m.h}`} fill="none" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      {m.strokes.map((s, i) => (
-        <path key={i} d={s.d} vectorEffect="non-scaling-stroke" strokeWidth={STROKE[weight]} stroke={'ink' in s && s.ink ? BRAND.ink : BRAND.filament} strokeDasharray={'dash' in s && s.dash ? s.dash.join(' ') : undefined} />
-      ))}
+    <span className="logo" role="img" aria-label="KEYPLAN">
+      <svg width={w} height={h} viewBox={`0 0 ${WORDMARK_PATH.viewW} 100`} aria-hidden>
+        {MARK_SHAPES.map((m, i) =>
+          m.t === 'rect' ? <rect key={i} x={m.x} y={m.y} width={m.w} height={m.h} rx={m.rx || undefined} fill={m.fill} />
+          : m.t === 'circle' ? <circle key={i} cx={m.cx} cy={m.cy} r={m.r} fill={m.fill} />
+          : <path key={i} d={m.d} fill="none" stroke={m.stroke} strokeWidth={m.sw} />,
+        )}
+        <path d={WORDMARK_PATH.d} fill="#1F1F1F" transform={`translate(${WORDMARK_PATH.x} ${WORDMARK_PATH.y}) scale(${WORDMARK_PATH.scale})`} />
+      </svg>
+    </span>
+  );
+}
+
+/** Category icon (official set, 48 × 48 strokes). Studio-made categories without an icon get a plain box. */
+export function CatIcon({ icon, size = 24, title }: { icon: string; size?: number; title?: string }) {
+  const paths = ICON_PATHS[icon] ?? ['M10 10H38V38H10Z', 'M10 24H38'];
+  return (
+    <svg className="caticon" width={size} height={size} viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth={2.25} strokeLinecap="square" strokeLinejoin="miter" role={title ? 'img' : undefined} aria-label={title} aria-hidden={title ? undefined : true}>
+      {paths.map((d, i) => <path key={i} d={d} />)}
     </svg>
   );
 }
 
-/** Empty state card with one small element of the graphic language. */
-export const Empty = ({ motif = 'strip', children }: { motif?: MotifName; children: ReactNode }) => (
-  <div className="card empty">
-    <Motif name={motif} width={motif === 'strip' || motif === 'glow' ? 120 : 56} weight="fine" className="empty-motif" />
+/** Status chip: tint + border in the text colour + dot + word (never colour alone). */
+export function StatusChip({ s }: { s: Status }) {
+  const st = STATUS_STYLE[s] ?? STATUS_STYLE.draft;
+  return (
+    <span className="status" style={{ background: st.bg, color: st.fg, borderColor: st.fg }}>
+      <span className="sdot" style={{ background: st.fg }} />{st.th}
+    </span>
+  );
+}
+
+/** Empty state: dashed box, mono mark, one line, one action. */
+export const Empty = ({ children }: { children: ReactNode }) => (
+  <div className="empty">
+    <Mark h={36} mono />
     <div>{children}</div>
   </div>
 );
@@ -88,10 +102,10 @@ export function SymbolIcon({ kind, color, size = 26 }: { kind: SymbolKind; color
 }
 
 export const FixtureChip = ({ f }: { f: Fixture }) => (
-  // the icon carries the plan colour; the code stays Ink so it is readable (green on white is < 4.5:1)
+  // the icon carries the plan colour; the code is Terracotta Deep text (green on white is < 4.5:1)
   <span className="chip">
     <SymbolIcon kind={f.symbol} color={f.color} size={20} />
-    <b className="code">{f.code}</b>
+    <b className="codetag">{f.code}</b>
   </span>
 );
 

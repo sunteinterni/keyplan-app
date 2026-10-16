@@ -1,4 +1,4 @@
-// Central fixture library: which fields a project copy shares with its library item,
+// Central item library (คลังสินค้า): which fields a project copy shares with its library item,
 // and how to tell that the library has moved on since the copy was made.
 import type { Fixture, LibraryItem } from './types';
 
@@ -8,15 +8,15 @@ import type { Fixture, LibraryItem } from './types';
  * per project, so it is only copied once on import and never overwritten later.
  */
 export const SPEC_FIELDS = [
-  'model', 'name', 'finish', 'socket', 'bulbs', 'watt_per_lamp', 'watt_total', 'kelvin', 'ip',
+  'cat', 'model', 'name', 'size', 'finish', 'socket', 'bulbs', 'watt_per_lamp', 'watt_total', 'kelvin', 'ip',
   'symbol', 'unit', 'price', 'supplier', 'note', 'photo_file', 'drawing_file', 'length_m',
 ] as const;
 export type SpecField = (typeof SPEC_FIELDS)[number];
 
 export const FIELD_LABEL: Record<SpecField, string> = {
-  model: 'รุ่น', name: 'ชื่อ', finish: 'สี/ผิว', socket: 'ขั้วหลอด', bulbs: 'จำนวนหลอด', watt_per_lamp: 'วัตต์/หลอด',
+  cat: 'หมวด', model: 'รุ่น', name: 'ชื่อ', size: 'ขนาด', finish: 'สี/ผิว', socket: 'ขั้วหลอด', bulbs: 'จำนวนหลอด', watt_per_lamp: 'วัตต์/หลอด',
   watt_total: 'วัตต์รวม', kelvin: 'อุณหภูมิสี', ip: 'IP', symbol: 'สัญลักษณ์', unit: 'หน่วย', price: 'ราคา',
-  supplier: 'ซัพพลายเออร์', note: 'หมายเหตุ', photo_file: 'รูปโคม', drawing_file: 'รูป Drawing', length_m: 'ความยาว (ม.)',
+  supplier: 'ซัพพลายเออร์', note: 'หมายเหตุ', photo_file: 'รูปสินค้า', drawing_file: 'รูป Drawing', length_m: 'ความยาว (ม.)',
 };
 
 export interface Change {
@@ -38,22 +38,20 @@ export function hasLibraryUpdate(f: Fixture, item: LibraryItem | undefined): boo
   return item.updated_at > (f.library_synced_at ?? '') && libraryChanges(f, item).length > 0;
 }
 
-/** Suggested code prefix per plan symbol; the user can pick any prefix (e.g. EX for exterior). */
+/** Lighting: suggested code prefix per plan symbol (DL downlight …). Other categories use their own prefix. */
 export const PREFIX_BY_SYMBOL: Record<string, string> = {
   downlight: 'DL', wall: 'WL', spot: 'SP', pendant: 'PD', track: 'TR', strip: 'LN', linear: 'T5',
 };
-/** Prefixes offered as one-click choices. */
-export const PREFIX_CHOICES = ['DL', 'WL', 'PD', 'SP', 'TR', 'LN', 'T5', 'EX', 'LT'];
 
-/** Normalises a typed prefix: letters/digits only, upper case, at most 6 characters. */
-export const cleanPrefix = (p: string) => p.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6) || 'LT';
+/** Normalises a typed code prefix: letters/digits only, upper case, at most 6 characters. */
+export const cleanPrefix = (p: string) => p.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6) || 'X';
 
 /**
  * Next free code for a prefix in the brand format PREFIX-NN (two digits, more when needed):
  * DL-01, DL-02 … Existing codes count whether written DL1, DL-1 or DL-01; gaps are never reused,
  * so codes already on drawings never shift.
  */
-export function nextCode(codes: string[], prefix = 'LT'): string {
+export function nextCode(codes: string[], prefix = 'X'): string {
   const p = cleanPrefix(prefix);
   const re = new RegExp(`^${p}-?(\\d+)$`, 'i');
   const max = codes.reduce((m, c) => Math.max(m, Number(re.exec(c.trim())?.[1] ?? 0)), 0);
@@ -61,5 +59,5 @@ export function nextCode(codes: string[], prefix = 'LT'): string {
 }
 
 /** Text a library search matches against. */
-export const searchText = (i: Pick<LibraryItem, 'model' | 'name' | 'supplier' | 'category' | 'socket' | 'finish'>) =>
-  [i.model, i.name, i.supplier, i.category, i.socket, i.finish].join(' ').toLowerCase();
+export const searchText = (i: Pick<LibraryItem, 'cat' | 'model' | 'name' | 'size' | 'supplier' | 'category' | 'socket' | 'finish'>) =>
+  [i.cat, i.model, i.name, i.size, i.supplier, i.category, i.socket, i.finish].join(' ').toLowerCase();

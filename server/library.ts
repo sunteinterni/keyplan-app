@@ -1,14 +1,16 @@
-// Central fixture library API.
+// Central item library API (คลังสินค้า), shared by all projects.
 // Projects copy items from the library (and can save their fixtures into it); a copy never changes by
 // itself — "update from library" brings later library edits in, field by field (see shared/library.ts).
 import type { FastifyInstance } from 'fastify';
 import { db } from './db';
 import { requireAdmin } from './auth';
 import { saveImage } from './files';
-import { FIXTURE_RULES, bad, idOf, num, patch, row, str, touch, type Body, type Rule } from './common';
-import { PREFIX_BY_SYMBOL, SPEC_FIELDS, nextCode } from '../shared/library';
-import { isLineSymbol } from '../shared/symbols';
-import type { Fixture, LibraryItem, SymbolKind } from '../shared/types';
+import { FIXTURE_RULES, bad, catRule, idOf, notRetired, num, patch, retiredCodes, row, str, touch, type Body, type Rule } from './common';
+import { SPEC_FIELDS, cleanPrefix, nextCode } from '../shared/library';
+import { defaultSymbol, isLineSymbol, symbolsFor } from '../shared/symbols';
+import { LIGHTING, categoryOf, isLengthUnit } from '../shared/categories';
+import { listCategories } from './categories';
+import type { Fixture, LibraryItem } from '../shared/types';
 
 // library timestamps keep milliseconds so "edited after the copy" is reliable within the same second
 const NOW = "strftime('%Y-%m-%d %H:%M:%f', 'now')";
@@ -26,7 +28,7 @@ const mustItem = (id: number) => {
 };
 const mustFixture = (id: number) => {
   const f = row<Fixture>('SELECT * FROM fixtures WHERE id = ?', id);
-  if (!f) throw bad('ไม่พบรหัสโคม', 404);
+  if (!f) throw bad('ไม่พบรหัสนี้', 404);
   return f;
 };
 const bump = (id: number) => db.prepare(`UPDATE library SET updated_at = ${NOW} WHERE id = ?`).run(id);
@@ -47,11 +49,16 @@ export function registerLibraryRoutes(api: FastifyInstance) {
 
   api.post('/api/library', async (req) => {
     const b = (req.body ?? {}) as Body;
-    const symbol = (str(b.symbol) || 'downlight') as SymbolKind;
-    const r = db.prepare(`INSERT INTO library (symbol, unit, created_by, created_at, updated_at) VALUES (?, ?, ?, ${NOW}, ${NOW})`)
-      .run(symbol, isLineSymbol(symbol) ? 'm' : 'ea', req.user?.id ?? null);
+    const cat = categoryOf(listCategories(), b.cat == null ? LIGHTING : (catRule(b.cat) as string));
+    const lighting = cat.prefix === LIGHTING;
+    const symbol = symbolsFor(lighting).some((x) => x.kind === str(b.symbol)) ? str(b.symbol) : defaultSymbol(lighting, isLengthUnit(cat.unit));
+    const r = db.prepare(`INSERT INTO library (cat, symbol, unit, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ${NOW}, ${NOW})`)
+      .run(cat.prefix, symbol, isLineSymbol(symbol as never) ? 'm' : cat.unit, req.user?.id ?? null);
     const id = Number(r.lastInsertRowid);
-    patch('library', id, LIB_RULES, b);
+    const rest = { ...b };
+    delete rest.cat;
+    delete rest.symbol;
+    patch('library', id, LIB_RULES, rest);
     return { id };
   });
 
@@ -126,6 +133,11 @@ export function registerLibraryRoutes(api: FastifyInstance) {
     if (apply) {
       if (isLineSymbol(it.symbol) !== isLineSymbol(f.symbol) && usedOnPlan(f.id)) throw bad('สัญลักษณ์ในคลังเป็นคนละชนิด (จุด/เส้น) กับที่ใช้บนแปลนแล้ว อัปเดตไม่ได้', 409);
       copySpec('fixtures', f.id, it as unknown as Record<string, unknown>);
+      if (it.cat !== LIGHTING) {
+        // circuits are for lighting only
+        db.prepare('UPDATE placements SET circuit_id = NULL, circuit_order = 0 WHERE fixture_id = ?').run(f.id);
+        db.prepare('UPDATE lines SET circuit_id = NULL, circuit_order = 0 WHERE fixture_id = ?').run(f.id);
+      }
     }
     db.prepare('UPDATE fixtures SET library_synced_at = ? WHERE id = ?').run(it.updated_at, f.id);
     touch(f.project_id);
@@ -139,7 +151,8 @@ export function registerLibraryRoutes(api: FastifyInstance) {
     const b = (req.body ?? {}) as Body;
     const it = mustItem(Number(num(b.library_id)));
     const codes = (db.prepare('SELECT code FROM fixtures WHERE project_id = ?').all(pid) as { code: string }[]).map((x) => x.code);
-    const code = str(b.code) || nextCode(codes, str(b.prefix) || PREFIX_BY_SYMBOL[it.symbol] || 'LT');
+    const code = str(b.code) || nextCode([...codes, ...retiredCodes(pid)], str(b.prefix) ? cleanPrefix(str(b.prefix)) : it.cat);
+    notRetired(pid, code);
     const r = db.prepare('INSERT INTO fixtures (project_id, code, sort, library_id, library_synced_at) VALUES (?, ?, ?, ?, ?)').run(pid, code, codes.length, it.id, it.updated_at);
     const id = Number(r.lastInsertRowid);
     copySpec('fixtures', id, it as unknown as Record<string, unknown>, ['color']);

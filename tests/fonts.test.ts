@@ -31,20 +31,17 @@ test('Thai faces contain Thai glyphs and Latin faces contain Latin glyphs', () =
   for (const f of FONT_FILES) doc.registerFont(f.name, path.join(FONT_DIR, f.file));
   // pdfkit exposes the parsed fontkit font on the current font object
   const has = (name: string, ch: string) => (doc.font(name) as unknown as { _font: { font: { hasGlyphForCodePoint(c: number): boolean } } })._font.font.hasGlyphForCodePoint(ch.codePointAt(0)!);
-  for (const n of ['th400', 'th600', 'handth400', 'handth600']) for (const ch of 'กขฟ่ั') assert.ok(has(n, ch), `${n} ${ch}`);
-  for (const n of ['la400', 'disp800', 'serifi', 'handla400', 'mono400']) for (const ch of 'lightTHEORY0') assert.ok(has(n, ch), `${n} ${ch}`);
+  for (const n of ['th400', 'th600']) for (const ch of 'กขฟ่ั') assert.ok(has(n, ch), `${n} ${ch}`);
+  for (const n of ['la400', 'disp800', 'disp600', 'mono400']) for (const ch of 'keyPLAN0฿'.replace('฿', '')) assert.ok(has(n, ch), `${n} ${ch}`);
 });
 
 test('fontFor picks the right face for each run', () => {
   assert.equal(fontFor(false), 'la400');
   assert.equal(fontFor(true, 600), 'th600');
   assert.equal(fontFor(false, 800, 'display'), 'disp800');
-  assert.equal(fontFor(false, 600, 'display'), 'disp500'); // nearest available (ties keep the lighter)
+  assert.equal(fontFor(false, 600, 'display'), 'disp600');
+  assert.equal(fontFor(false, 400, 'display'), 'disp500'); // nearest available
   assert.equal(fontFor(true, 800, 'display'), 'th600'); // Thai stays in Plex Sans Thai
-  assert.equal(fontFor(false, 400, 'serif'), 'serifi');
-  assert.equal(fontFor(true, 400, 'serif'), 'th400');
-  assert.equal(fontFor(true, 500, 'hand'), 'handth400');
-  assert.equal(fontFor(false, 600, 'hand'), 'handla600');
   assert.equal(fontFor(false, 600, 'body', true), 'mono500');
   assert.equal(fontFor(true, 400, 'body', true), 'th400'); // mono has no Thai
 });

@@ -23,6 +23,7 @@ export function Users({ me, toast }: { me: User; toast: (m: string) => void }) {
   };
   return (
     <main className="page narrow">
+      <div className="eyebrow">TEAM · Team</div>
       <h1>ทีม / บัญชี</h1>
       <section className="card">
         <h3>เปลี่ยนรหัสผ่านของฉัน</h3>

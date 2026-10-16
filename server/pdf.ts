@@ -3,8 +3,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import PDFDocument from 'pdfkit';
-import { boq, byCode, issues as _issues, lampText, lineLengthM, loadSchedule, quantities, unitWatt } from '../shared/calc';
-import { BRAND, LOCKUP, MARK, MOTIFS, STROKE, TONES, TYPE, WIRE_COLORS as WIRE, WORDMARK, onColor, type Motif, type MotifName, type StrokeWeight } from '../shared/brand';
+import { boq, byCode, isLighting, issues as _issues, lampText, lineLengthM, loadSchedule, quantities, unitWatt } from '../shared/calc';
+import { BRAND, TYPE, WIRE_COLORS as WIRE, onColor } from '../shared/brand';
+import { ICON_PATHS, MARK_SHAPES, WORDMARK_PATH } from '../shared/brand-assets';
+import { categoryOf, unitTh } from '../shared/categories';
 import { COLORS, LABEL_COLORS, linearLengthPx, baseRadius, isLineSymbol, lineStyle, pointSymbol, pointsAlong, polylineLength, primToSvg, symbolMeta, wiringPath } from '../shared/symbols';
 import type { Bundle, Fixture, Floor } from '../shared/types';
 import { planImage, uploadPath } from './files';
@@ -20,9 +22,10 @@ const TOP = 82;
 const BOT = H - 52;
 
 const INK = BRAND.ink;
-const GREY = TONES.muted;
-const RULE = TONES.line;
-const SOFT = TONES.soft;
+const GREY = BRAND.ink2;
+const RULE = BRAND.line;
+const SOFT = BRAND.fill;
+const PAPER = BRAND.canvas;
 
 const TH = /[฀-๿]/;
 const COMBINING = /[ัิ-ฺ็-๎]/;
@@ -38,7 +41,7 @@ interface TOpts {
   align?: 'left' | 'center' | 'right';
   width?: number;
   mono?: boolean;
-  family?: FontFamily; // Latin face; Thai runs stay in IBM Plex Sans Thai (Mali for 'hand')
+  family?: FontFamily; // Latin face; Thai runs stay in IBM Plex Sans Thai
   halo?: number; // white outline thickness
   track?: number; // letter-spacing in em (brand type scale); Latin runs only — Thai is never spaced out
 }
@@ -47,7 +50,7 @@ interface TOpts {
 const T = {
   display: { family: 'display', w: TYPE.display.weight, track: TYPE.display.tracking },
   headline: { family: 'display', w: TYPE.headline.weight, track: TYPE.headline.tracking },
-  label: { mono: true, w: TYPE.label.weight, track: TYPE.label.tracking, color: TONES.muted },
+  label: { mono: true, w: TYPE.label.weight, track: TYPE.label.tracking, color: GREY },
 } satisfies Record<string, TOpts>;
 
 function split(s: string): { t: string; th: boolean }[] {
@@ -138,48 +141,49 @@ interface Ctx {
   plans: Map<number, Buffer>; // floor id → plan image as it should appear (see planImage)
 }
 
-/** Light Theory mark (shared/brand.ts): Filament ring + Ink crosshair. Box is `size` pt square. */
-function drawSymbol(doc: Doc, x: number, y: number, size: number, ink = INK) {
-  doc.save().translate(x, y).scale(size / MARK.viewBox).lineCap('round').lineWidth(MARK.strokeWidth);
-  doc.path(MARK.ring).strokeColor(BRAND.filament).stroke();
-  doc.path(MARK.cross).strokeColor(ink).stroke();
+/** KEYPLAN room-plan mark (brand-assets.ts, from the official SVG). Box is `size` pt square. */
+function drawSymbol(doc: Doc, x: number, y: number, size: number, recolor?: (c: string) => string) {
+  doc.save().translate(x, y).scale(size / 100);
+  for (const m of MARK_SHAPES) {
+    if (m.t === 'rect') {
+      const c = recolor ? recolor(m.fill) : m.fill;
+      (m.rx ? doc.roundedRect(m.x, m.y, m.w, m.h, m.rx) : doc.rect(m.x, m.y, m.w, m.h)).fill(c);
+    } else if (m.t === 'circle') doc.circle(m.cx, m.cy, m.r).fill(recolor ? recolor(m.fill) : m.fill);
+    else doc.path(m.d).lineWidth(m.sw).strokeColor(recolor ? recolor(m.stroke) : m.stroke).stroke();
+  }
   doc.restore();
 }
-/** Symbol + stacked "light / theory" wordmark. Returns the lockup width. */
-function drawLogo(doc: Doc, x: number, y: number, h = 38, ink = INK): number {
-  drawSymbol(doc, x, y, h, ink);
-  const fs = h * LOCKUP.fontSize;
-  const tx = x + h + h * LOCKUP.gap;
-  const cs = fs * WORDMARK.tracking;
-  const [l1, l2] = WORDMARK.lines;
-  doc.font(fontFor(false, WORDMARK.weight, 'display')).fontSize(fs).fillColor(ink);
-  doc.text(l1, tx, y + h * LOCKUP.top, { lineBreak: false, characterSpacing: cs });
-  doc.text(l2, tx, y + h * LOCKUP.top + fs * LOCKUP.leading, { lineBreak: false, characterSpacing: cs });
-  return h + h * LOCKUP.gap + doc.widthOfString(l2, { characterSpacing: cs });
+/** Horizontal lockup (mark + KEYPLAN wordmark), h = mark height. Returns the lockup width. Never retyped: the wordmark is the official path. */
+function drawLogo(doc: Doc, x: number, y: number, h = 38): number {
+  drawSymbol(doc, x, y, h);
+  const k = h / 100;
+  doc.save().translate(x + WORDMARK_PATH.x * k, y + WORDMARK_PATH.y * k).scale(WORDMARK_PATH.scale * k);
+  doc.path(WORDMARK_PATH.d).fill(INK);
+  doc.restore();
+  return WORDMARK_PATH.viewW * k;
 }
-
-/**
- * Graphic-language element (shared/brand.ts) scaled to `width`, top-left at (x, y). Decoration only — never on a plan.
- * The line keeps one of the brand weights (2.5 / 4.5 / 7 pt) whatever the scale.
- */
-function drawMotif(doc: Doc, name: MotifName, x: number, y: number, width: number, weight: StrokeWeight = 'standard') {
-  const m: Motif = MOTIFS[name];
-  const s = width / m.w;
-  doc.save().translate(x, y).scale(s).lineCap('round').lineJoin('round').lineWidth(STROKE[weight] / s);
-  for (const st of m.strokes) {
-    if (st.dash) doc.dash(st.dash[0], { space: st.dash[1] });
-    else doc.undash();
-    doc.path(st.d).strokeColor(st.ink ? INK : BRAND.filament).stroke();
-  }
-  doc.undash().restore();
+/** Plan pattern (guideline: canvas variant) — the mark tiled in quiet beige tones; cover page only. */
+function drawPattern(doc: Doc, x: number, y: number, w: number, h: number, cell = 150) {
+  doc.save().rect(x, y, w, h).clip();
+  doc.rect(x, y, w, h).fill(BRAND.sidebar);
+  const quiet = (c: string) => (c === BRAND.ink ? '#E3DCCB' : c);
+  for (let cy = y + 24; cy < y + h; cy += cell) for (let cx = x + 24; cx < x + w; cx += cell) drawSymbol(doc, cx, cy, cell - 48, quiet);
+  doc.restore();
+}
+/** Category icon (brand-assets.ts, 48 × 48 stroked paths), top-left at (x, y), size pt square. */
+function drawCatIcon(doc: Doc, icon: string, x: number, y: number, size: number, color = INK) {
+  const paths = ICON_PATHS[icon] ?? ['M10 10H38V38H10Z', 'M10 24H38'];
+  doc.save().translate(x, y).scale(size / 48).lineWidth(2.25).lineCap('square').lineJoin('miter').strokeColor(color);
+  for (const d of paths) doc.path(d).stroke();
+  doc.restore();
 }
 
 function newSheet(c: Ctx, title: string, sub = ''): void {
   const { doc, b } = c;
   doc.addPage({ size: 'A3', layout: 'landscape', margin: 0 });
   c.sheets.push({ title, sub });
-  doc.rect(0, 0, W, H).fill(TONES.paper); // light plaster paper (guideline 08); plans and cards sit on white
-  const lw = drawLogo(doc, MX, 16, 40);
+  doc.rect(0, 0, W, H).fill(PAPER); // canvas paper; plans, cards and tables sit on white
+  const lw = drawLogo(doc, MX, 20, 32);
   const dx = MX + lw + 18;
   doc.moveTo(dx, 22).lineTo(dx, 54).lineWidth(0.8).strokeColor(RULE).stroke();
   const name: TOpts = { ...T.headline, size: 20 };
@@ -201,21 +205,21 @@ function coverPage(c: Ctx) {
   const p = b.project;
   const L = 64;
   doc.switchToPage(0);
-  doc.rect(0, 0, W, H).fill(BRAND.plaster);
-  drawLogo(doc, L, 60, 96);
-  // graphic language: two elements only — a light beam here and the glow under the title
-  drawMotif(doc, 'beam', W - 64 - 200, 48, 200, 'standard');
+  doc.rect(0, 0, W, H).fill(PAPER);
+  const PW = 330;
+  drawPattern(doc, W - PW, 0, PW, H);
+  doc.moveTo(W - PW, 0).lineTo(W - PW, H).lineWidth(1.5).strokeColor(INK).stroke();
+  drawLogo(doc, L, 60, 64);
+  txt(doc, 'PLAN  ·  PRICE  ·  YOUR HOME', L, 136, { ...T.label, size: 9 });
 
-  let y = 290;
-  txt(doc, 'LIGHTING DESIGN  ·  ออกแบบแสงสว่าง', L, y, { ...T.label, size: 10 });
+  let y = 250;
+  txt(doc, 'FF&E SCHEDULE  ·  รายการวัสดุและครุภัณฑ์', L, y, { ...T.label, size: 10, color: BRAND.primaryText });
   y += 26;
   const big: TOpts = { ...T.display, size: 54 };
-  const lines = wrap(doc, p.name || 'Untitled', 620, big).slice(0, 2);
+  const lines = wrap(doc, p.name || 'Untitled', 420, big).slice(0, 2);
   lines.forEach((ln, i) => txt(doc, ln, L, y + i * 66, big));
-  y += lines.length * 66 + 4;
-  drawMotif(doc, 'glow', L, y, 150, 'fine');
-  y += 58; // glow is ~47 pt tall
-  txt(doc, 'light is a theory, proven in space.', L, y, { size: 22, family: 'serif' });
+  y += lines.length * 66 + 10;
+  txt(doc, 'แปลน รายการวัสดุ ราคา และสเปค สำหรับงานรีโนเวท', L, y, { size: 16, color: GREY });
 
   // title block (as in the CI drawing title block)
   const cells: [string, string][] = [
@@ -226,7 +230,7 @@ function coverPage(c: Ctx) {
     ['DESIGNER', p.designer],
     ['PREPARED BY', p.prepared_by],
   ];
-  const tbW = 640;
+  const tbW = 560;
   const cw = tbW / 3;
   const chh = 58;
   const ty = H - 64 - chh * 2;
@@ -248,24 +252,24 @@ function coverPage(c: Ctx) {
     if (last && last.title === sh.title && /^(\d+\/\d+|\(.*\))$/.test(sh.sub)) last.to = page;
     else rows.push({ from: page, to: page, title: sh.title, sub: /^\d+\/\d+$/.test(sh.sub) ? '' : sh.sub });
   });
-  const ix = W - 64 - 380;
-  let iy = 330;
+  const ix = W - PW - 40 - 300; // sheet index between the title and the pattern panel
+  let iy = 250;
   txt(doc, 'SHEETS  ·  รายการแบบ', ix, iy, { ...T.label, size: 9 });
   iy += 18;
-  doc.moveTo(ix, iy).lineTo(ix + 380, iy).lineWidth(0.8).strokeColor(INK).stroke();
+  doc.moveTo(ix, iy).lineTo(ix + 300, iy).lineWidth(0.8).strokeColor(INK).stroke();
   iy += 10;
-  const maxRows = Math.floor((H - 64 - iy) / 24);
+  const maxRows = Math.floor((H - 64 - 130 - iy) / 24);
   const pg = (n: number) => String(n).padStart(2, '0');
   rows.slice(0, maxRows).forEach((r) => {
     txt(doc, r.from === r.to ? pg(r.from) : `${pg(r.from)}–${pg(r.to)}`, ix, iy + 3, { size: 9.5, w: 500, mono: true, color: GREY });
     const t: TOpts = { size: 12, w: 500, family: 'display' };
     txt(doc, r.title, ix + 64, iy + 1, t);
     const sx = ix + 74 + tw(doc, r.title, t);
-    if (r.sub) txt(doc, clip(doc, r.sub, ix + 380 - sx, { size: 10.5, color: GREY }), sx, iy + 3, { size: 10.5, color: GREY });
+    if (r.sub) txt(doc, clip(doc, r.sub, ix + 300 - sx, { size: 10.5, color: GREY }), sx, iy + 3, { size: 10.5, color: GREY });
     iy += 24;
   });
   if (rows.length > maxRows) txt(doc, `… และอีก ${rows.length - maxRows} รายการ`, ix + 64, iy, { size: 9.5, color: GREY });
-  txt(doc, 'architectural lighting studio, bangkok', L, H - 40, { size: 8.5, color: GREY, mono: true });
+  txt(doc, 'Prepared with KEYPLAN', L, H - 40, { size: 8.5, color: GREY, mono: true });
 }
 
 function footers(c: Ctx) {
@@ -451,8 +455,8 @@ function legend(c: Ctx, x: number, y: number, w: number, floor: Floor) {
     icon(doc, f, x + 16, cy + 11);
     txt(doc, f.code, x + 38, cy + 2, { size: 11, w: 500, mono: true }); // icon carries the plan colour
     const n = q[f.id].perFloor[floor.id];
-    txt(doc, `${qtyText(n)} ${f.unit === 'm' ? 'm' : 'ชุด'}`, x + w - 70, cy + 2, { size: 10, w: 500, align: 'right', width: 70 });
-    const desc = [f.name || f.model, lampText(f), f.kelvin ? `${f.kelvin}K` : ''].filter(Boolean).join('  ·  ');
+    txt(doc, `${qtyText(n)} ${unitTh(f.unit)}`, x + w - 70, cy + 2, { size: 10, w: 500, align: 'right', width: 70 });
+    const desc = (isLighting(f) ? [f.name || f.model, lampText(f), f.kelvin ? `${f.kelvin}K` : ''] : [f.name || f.model, f.size, f.finish]).filter(Boolean).join('  ·  ');
     const lines = wrap(doc, desc, w - 100, { size: 8.5 }).slice(0, 2);
     lines.forEach((ln, i) => txt(doc, ln, x + 38, cy + 17 + i * 11, { size: 8.5, color: GREY }));
     cy += 24 + lines.length * 11;
@@ -464,7 +468,7 @@ function layoutSheets(c: Ctx) {
   const { b } = c;
   const has = (fl: Floor) => b.placements.some((p) => p.floor_id === fl.id) || b.lines.some((l) => l.floor_id === fl.id) || !!fl.plan_file;
   for (const fl of b.floors.filter(has)) {
-    newSheet(c, 'Lighting Layout', fl.name);
+    newSheet(c, 'Plan Layout', fl.name);
     const lw = 250;
     drawPlan(c, fl, { x: MX, y: TOP, w: W - MX * 2 - lw - 16, h: BOT - TOP }, 'layout');
     legend(c, W - MX - lw, TOP, lw, fl);
@@ -510,18 +514,20 @@ function specSheets(c: Ctx) {
   const ch = (BOT - TOP - gap * (rows - 1)) / rows;
   list.forEach((f, i) => {
     const k = i % (cols * rows);
-    if (k === 0) newSheet(c, 'Lighting Specification', `${Math.floor(i / (cols * rows)) + 1}/${Math.ceil(list.length / (cols * rows))}`);
+    if (k === 0) newSheet(c, 'Item Specification', `${Math.floor(i / (cols * rows)) + 1}/${Math.ceil(list.length / (cols * rows))}`);
     const x = MX + (k % cols) * (cw + gap);
     const y = TOP + Math.floor(k / cols) * (ch + gap);
     doc.rect(x, y, cw, ch).fill(BRAND.white);
     doc.rect(x, y, cw, ch).lineWidth(0.6).strokeColor(RULE).stroke();
-    // head: icon in plan colour, code in display type, Filament rule underneath (CI spec sheet)
+    // head: category icon, code in display type, Charcoal rule underneath
+    const cat = categoryOf(b.categories, f.cat);
     doc.rect(x, y, cw, 34).fill(SOFT);
-    doc.rect(x, y + 34, cw, 2).fill(BRAND.filament);
-    icon(doc, f, x + 22, y + 17, 11);
-    txt(doc, f.code, x + 48, y + 6, { ...T.headline, size: 18 });
+    doc.rect(x, y + 34, cw, 1.5).fill(INK);
+    drawCatIcon(doc, cat.icon, x + 10, y + 7, 20);
+    icon(doc, f, x + 44, y + 17, 9);
+    txt(doc, f.code, x + 60, y + 7, { ...T.headline, size: 17, color: BRAND.primaryText });
     const n = q[f.id]?.total ?? 0;
-    txt(doc, `${qtyText(n)} ${f.unit === 'm' ? 'm' : 'ชุด'}`, x + cw - 110, y + 10, { size: 13, w: 600, align: 'right', width: 100 });
+    txt(doc, `${qtyText(n)} ${unitTh(f.unit)}`, x + cw - 110, y + 10, { size: 13, w: 600, align: 'right', width: 100 });
     // images
     const iy = y + 42;
     const ih = 120;
@@ -530,20 +536,26 @@ function specSheets(c: Ctx) {
       const bx = x + 10 + j * (iw + 10);
       doc.rect(bx, iy, iw, ih).lineWidth(0.4).strokeColor(RULE).stroke();
       if (file && fs.existsSync(uploadPath(file))) doc.image(uploadPath(file), bx + 3, iy + 3, { fit: [iw - 6, ih - 6], align: 'center', valign: 'center' });
-      else txt(doc, j === 0 ? 'รูปโคม' : 'แบบ / Drawing', bx, iy + ih / 2 - 6, { size: 9, color: GREY, align: 'center', width: iw });
+      else txt(doc, j === 0 ? 'รูปสินค้า' : 'แบบ / Drawing', bx, iy + ih / 2 - 6, { size: 9, color: GREY, align: 'center', width: iw });
     }
     // details
     let ty = iy + ih + 12;
     const kv: [string, string][] = [
-      ['รุ่น', f.model],
+      ['หมวด', cat.name_th],
       ['ชื่อ', f.name],
-      ['ขั้ว / หลอด', [f.socket, f.bulbs ? `${f.bulbs} หลอด` : ''].filter(Boolean).join(' · ')],
-      ['กำลังไฟ', f.watt_per_lamp != null ? `${f.watt_per_lamp} W${f.unit === 'm' ? '/m' : ' / หลอด'}${unitWatt(f) && f.unit !== 'm' ? `  (รวม ${qtyText(unitWatt(f))} W)` : ''}` : f.watt_total != null ? `${f.watt_total} W` : ''],
-      ['อุณหภูมิสี / IP', [f.kelvin ? `${f.kelvin}K` : '', f.ip].filter(Boolean).join(' · ')],
-      ['สี / ผิว', f.finish],
-      ['ซัพพลายเออร์', f.supplier],
+      ['รุ่น', f.model],
+      ['ขนาด', f.size],
+      ['ห้อง / พื้นที่', f.room],
     ];
-    if (c.prices) kv.push(['ราคา', f.price != null ? `${money(f.price)} บาท${f.unit === 'm' ? ' / ม.' : ' / ชุด'}` : 'รอราคา']);
+    if (isLighting(f)) {
+      kv.push(
+        ['ขั้ว / หลอด', [f.socket, f.bulbs ? `${f.bulbs} หลอด` : ''].filter(Boolean).join(' · ')],
+        ['กำลังไฟ', f.watt_per_lamp != null ? `${f.watt_per_lamp} W${f.unit === 'm' ? '/m' : ' / หลอด'}${unitWatt(f) && f.unit !== 'm' ? `  (รวม ${qtyText(unitWatt(f))} W)` : ''}` : f.watt_total != null ? `${f.watt_total} W` : ''],
+        ['อุณหภูมิสี / IP', [f.kelvin ? `${f.kelvin}K` : '', f.ip].filter(Boolean).join(' · ')],
+      );
+    }
+    kv.push(['สี / ผิว', f.finish], ['ซัพพลายเออร์', f.supplier]);
+    if (c.prices) kv.push(['ราคา', f.price != null ? `${money(f.price)} บาท / ${unitTh(f.unit)}` : 'รอราคา']);
     if (f.note) kv.push(['หมายเหตุ', f.note]);
     for (const [k2, v] of kv) {
       if (!v) continue;
@@ -563,7 +575,8 @@ interface Col {
   mono?: boolean; // numbers and codes use IBM Plex Mono (guideline 08)
 }
 
-function table(c: Ctx, title: string, cols: Col[], rows: (string[] & { bold?: boolean })[], opts: { rowH?: number; totalW?: number; firstY?: number } = {}): number {
+type Row = string[] & { bold?: boolean; group?: boolean };
+function table(c: Ctx, title: string, cols: Col[], rows: Row[], opts: { rowH?: number; totalW?: number; firstY?: number } = {}): number {
   const { doc } = c;
   const rowH = opts.rowH ?? 22;
   const totalW = opts.totalW ?? W - MX * 2;
@@ -571,10 +584,11 @@ function table(c: Ctx, title: string, cols: Col[], rows: (string[] & { bold?: bo
   const cw = cols.map((x) => x.w * scale);
   let y = opts.firstY ?? TOP;
   const head = () => {
-    doc.rect(MX, y, totalW, 24).fill(INK);
+    doc.rect(MX, y, totalW, 24).fill(SOFT);
+    doc.rect(MX, y + 22.5, totalW, 1.5).fill(INK);
     let x = MX;
     cols.forEach((col, i) => {
-      txt(doc, col.h, x + 6, y + 6, { size: 9.5, w: 600, color: '#ffffff', align: col.align ?? 'left', width: cw[i] - 12 });
+      txt(doc, col.h, x + 6, y + 6, { size: 9.5, w: 600, color: INK, align: col.align ?? 'left', width: cw[i] - 12 });
       x += cw[i];
     });
     y += 24;
@@ -586,7 +600,17 @@ function table(c: Ctx, title: string, cols: Col[], rows: (string[] & { bold?: bo
       y = TOP;
       head();
     }
-    doc.rect(MX, y, totalW, rowH).fill(ri % 2 === 1 ? SOFT : BRAND.white);
+    doc.rect(MX, y, totalW, rowH).fill(r.group ? BRAND.sidebar : BRAND.white);
+    void ri;
+    if (r.group) {
+      // section row: the category name across the table, its subtotal in the last column
+      txt(doc, r[0], MX + 6, y + (rowH - 11) / 2, { size: 10, w: 600 });
+      const last = cols.length - 1;
+      txt(doc, r[last] ?? '', MX + totalW - cw[last] + 6, y + (rowH - 11) / 2, { size: 9.5, w: 600, align: 'right', width: cw[last] - 12, mono: true });
+      doc.moveTo(MX, y + rowH).lineTo(MX + totalW, y + rowH).lineWidth(0.6).strokeColor(INK).stroke();
+      y += rowH;
+      return;
+    }
     let x = MX;
     cols.forEach((col, i) => {
       const o: TOpts = { size: 9.5, w: r.bold ? 600 : 400, align: col.align ?? 'left', width: cw[i] - 12, mono: col.mono };
@@ -604,13 +628,13 @@ function loadSheet(c: Ctx) {
   if (!b.circuits.length) return;
   const ls = loadSchedule(b);
   newSheet(c, 'Lighting Load Schedule', `${b.project.voltage} V`);
-  const rows: (string[] & { bold?: boolean })[] = [];
+  const rows: Row[] = [];
   const itemsText = (r: (typeof ls.rows)[number]) => r.items.map((i) => `${i.fixture.code} ×${qtyText(i.qty)}${i.fixture.unit === 'm' ? ' m' : ''}`).join(',  ');
   for (const r of ls.rows) {
     rows.push([r.circuit?.name ?? '', r.circuit?.area ?? '', itemsText(r), qtyText(r.pieces), r.meters ? qtyText(Math.round(r.meters * 10) / 10) : '-', qtyText(Math.round(r.watts)), r.amps.toFixed(2), r.circuit?.breaker_a ? `${r.circuit.breaker_a} A` : '-']);
   }
   if (ls.unassigned) rows.push(['ยังไม่ระบุวงจร', '', itemsText(ls.unassigned), qtyText(ls.unassigned.pieces), ls.unassigned.meters ? qtyText(Math.round(ls.unassigned.meters * 10) / 10) : '-', qtyText(Math.round(ls.unassigned.watts)), ls.unassigned.amps.toFixed(2), '-']);
-  const tot = ['รวม', '', '', qtyText(ls.totalPieces), ls.totalMeters ? qtyText(Math.round(ls.totalMeters * 10) / 10) : '-', qtyText(Math.round(ls.totalWatts)), ls.totalAmps.toFixed(2), ''] as string[] & { bold?: boolean };
+  const tot = ['รวม', '', '', qtyText(ls.totalPieces), ls.totalMeters ? qtyText(Math.round(ls.totalMeters * 10) / 10) : '-', qtyText(Math.round(ls.totalWatts)), ls.totalAmps.toFixed(2), ''] as Row;
   tot.bold = true;
   rows.push(tot);
   table(c, 'Lighting Load Schedule', [
@@ -630,24 +654,33 @@ function boqSheet(c: Ctx) {
   const { doc, b } = c;
   const r = boq(b);
   newSheet(c, 'Quotation / Bill of Quantities', `VAT ${b.project.vat_rate}%`);
-  const rows: string[][] = r.rows.map((row, i) => {
-    const f = row.fixture;
-    return [
-      String(i + 1),
-      f.code,
-      [f.name || f.model, f.name && f.model ? f.model : ''].filter(Boolean).join(' · '),
-      [lampText(f), f.kelvin ? `${f.kelvin}K` : ''].filter(Boolean).join('  '),
-      qtyText(row.qty.total),
-      f.unit === 'm' ? 'ม.' : 'ชุด',
-      row.price != null ? money(row.price) : 'รอราคา',
-      row.price != null ? money(row.amount) : '-',
-    ];
-  });
+  const rows: Row[] = [];
+  let n = 0;
+  for (const g of r.groups) {
+    const head = [`${g.category.prefix}  ·  ${g.category.name_th}${g.category.name_en ? `  ${g.category.name_en}` : ''}`, '', '', '', '', '', '', '', money(g.sub)] as Row;
+    head.group = true;
+    rows.push(head);
+    for (const row of g.rows) {
+      const f = row.fixture;
+      rows.push([
+        String(++n),
+        f.code,
+        [f.name || f.model, f.name && f.model ? f.model : ''].filter(Boolean).join(' · '),
+        (isLighting(f) ? [lampText(f), f.kelvin ? `${f.kelvin}K` : ''] : [f.size, f.finish]).filter(Boolean).join('  '),
+        f.room,
+        qtyText(row.qty.total),
+        unitTh(f.unit),
+        row.price != null ? money(row.price) : 'รอราคา',
+        row.price != null ? money(row.amount) : '-',
+      ]);
+    }
+  }
   const endY = table(c, 'Quotation / Bill of Quantities', [
     { h: 'ลำดับ', w: 40, align: 'center', mono: true },
     { h: 'รหัส', w: 60, mono: true },
-    { h: 'รายการ / รุ่น', w: 300 },
-    { h: 'สเปค', w: 190 },
+    { h: 'รายการ / รุ่น', w: 260 },
+    { h: 'สเปค', w: 170 },
+    { h: 'ห้อง', w: 90 },
     { h: 'จำนวน', w: 60, align: 'right', mono: true },
     { h: 'หน่วย', w: 45, align: 'center' },
     { h: 'ราคา/หน่วย', w: 90, align: 'right', mono: true },
@@ -672,9 +705,9 @@ function boqSheet(c: Ctx) {
   line(`ภาษีมูลค่าเพิ่ม ${b.project.vat_rate}%`, money(r.vat));
   doc.moveTo(x, y - 2).lineTo(x + bw, y - 2).lineWidth(0.8).strokeColor(INK).stroke();
   y += 4;
-  doc.rect(x - 8, y - 6, bw + 8, 26).fill(BRAND.beam);
+  doc.rect(x - 8, y - 6, bw + 8, 26).fill(BRAND.primary); // the one Terracotta accent on this page
   line('ยอดรวมสุทธิ', `฿ ${money(r.grand)}`, true);
-  if (r.unpriced) txt(doc, `* มี ${r.unpriced} รายการที่ยังรอราคา ยังไม่รวมในยอดนี้`, x, y + 4, { size: 9, color: TONES.warn });
+  if (r.unpriced) txt(doc, `* มี ${r.unpriced} รายการที่ยังรอราคา ยังไม่รวมในยอดนี้`, x, y + 4, { size: 9, color: BRAND.warn });
   if (b.project.note) wrap(doc, b.project.note, W / 2 - MX, { size: 9.5 }).slice(0, 6).forEach((ln, i) => txt(doc, ln, MX, endY + 18 + i * 13, { size: 9.5, color: GREY }));
 }
 
@@ -688,7 +721,7 @@ export async function buildPdf(b: Bundle, opts: PdfOptions): Promise<Buffer> {
   for (const fl of b.floors) {
     if (fl.plan_file && fs.existsSync(uploadPath(fl.plan_file))) plans.set(fl.id, await planImage(uploadPath(fl.plan_file), !!fl.plan_gray, fl.plan_opacity ?? 1));
   }
-  const doc = new PDFDocument({ size: 'A3', layout: 'landscape', margin: 0, autoFirstPage: false, bufferPages: true, info: { Title: `${b.project.name} — Lighting Design`, Author: b.project.designer || 'Light Theory' } });
+  const doc = new PDFDocument({ size: 'A3', layout: 'landscape', margin: 0, autoFirstPage: false, bufferPages: true, info: { Title: `${b.project.name} — KEYPLAN`, Author: b.project.designer || 'KEYPLAN', Creator: 'KEYPLAN' } });
   registerFonts(doc);
   const chunks: Buffer[] = [];
   doc.on('data', (d: Buffer) => chunks.push(d));
@@ -703,7 +736,7 @@ export async function buildPdf(b: Bundle, opts: PdfOptions): Promise<Buffer> {
   specSheets(c);
   loadSheet(c);
   if (opts.prices) boqSheet(c);
-  if (!c.sheets.length) newSheet(c, 'Lighting Design', 'ยังไม่มีข้อมูล');
+  if (!c.sheets.length) newSheet(c, 'Project', 'ยังไม่มีข้อมูล');
   coverPage(c);
   footers(c);
   doc.end();

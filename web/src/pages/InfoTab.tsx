@@ -1,6 +1,7 @@
 import { api } from '../api';
 import { Field, Txt } from '../ui';
 import type { Project } from '../../../shared/types';
+import { LIGHTING } from '../../../shared/categories';
 import type { TabProps } from './common';
 
 export function InfoTab({ bundle, reload, toast }: TabProps) {
@@ -15,8 +16,7 @@ export function InfoTab({ bundle, reload, toast }: TabProps) {
   };
   return (
     <main className="page narrow">
-      <h2>Project Information</h2>
-      <p className="muted">ข้อมูลนี้จะแสดงบนหัวกระดาษและส่วนท้ายของ PDF ทุกหน้า</p>
+      <div className="pagehead"><div><div className="eyebrow">PRJ · Project</div><h1>ข้อมูลโครงการ</h1><p className="sub">แสดงบนหน้าปก หัวกระดาษ และส่วนท้ายของ PDF ทุกหน้า</p></div></div>
       <section className="card form">
         <PField p={p} save={save} k="name" label="ชื่อโครงการ" wide />
         <PField p={p} save={save} k="client" label="ลูกค้า / เจ้าของโครงการ" />
@@ -28,11 +28,15 @@ export function InfoTab({ bundle, reload, toast }: TabProps) {
         <PField p={p} save={save} k="prepared_by" label="ผู้จัดทำ (Prepared by)" />
         <PField p={p} save={save} k="note" label="หมายเหตุท้ายใบเสนอราคา" wide area />
       </section>
-      <h3>ค่าไฟฟ้าสำหรับ Load Schedule</h3>
-      <section className="card form">
-        <PField p={p} save={save} k="voltage" label="แรงดัน (V)" type="number" />
-        <PField p={p} save={save} k="pf" label="Power Factor (0–1)" type="number" />
-      </section>
+      {(bundle.fixtures.some((f) => f.cat === LIGHTING) || bundle.circuits.length > 0) && (
+        <>
+          <h3>ค่าไฟฟ้าสำหรับ Load Schedule (หมวดไฟ)</h3>
+          <section className="card form">
+            <PField p={p} save={save} k="voltage" label="แรงดัน (V)" type="number" />
+            <PField p={p} save={save} k="pf" label="Power Factor (0–1)" type="number" />
+          </section>
+        </>
+      )}
     </main>
   );
 }

@@ -27,7 +27,7 @@ export function CircuitsTab({ bundle, reload, toast }: TabProps) {
         <h2>วงจร และ Lighting Load Schedule</h2>
         <button className="btn primary" onClick={add}>+ เพิ่มวงจร</button>
       </div>
-      <p className="muted">โยงโคมเข้าวงจรที่แท็บ “แปลน” → โหมด “โยงวงจร” แล้วคลิกโคมตามลำดับ · คำนวณแอมป์ = W ÷ ({bundle.project.voltage} V × PF {bundle.project.pf}) (ปรับได้ที่ “ข้อมูลโครงการ”)</p>
+      <p className="muted">เฉพาะรายการหมวดไฟ (L) · โยงโคมเข้าวงจรที่แท็บ “แปลน” → โหมด “โยงวงจร” แล้วคลิกโคมตามลำดับ · คำนวณแอมป์ = W ÷ ({bundle.project.voltage} V × PF {bundle.project.pf}) (ปรับได้ที่ “ข้อมูลโครงการ”)</p>
       <div className="card scroll">
         <table className="tbl">
           <thead>

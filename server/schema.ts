@@ -1,8 +1,11 @@
 // Database schema and migrations. No side effects: db.ts runs migrate() on the real database,
 // tests run it on throwaway ones.
 import type Database from 'better-sqlite3';
+import { BUILTIN_CATEGORIES } from '../shared/categories';
 
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
+
+const q = (s: string) => `'${s.replace(/'/g, "''")}'`;
 
 // Version 1 schema; later versions are applied as migrations below so existing databases keep their data.
 export const SCHEMA_V1 = `
@@ -79,17 +82,40 @@ const migrations: Record<number, string> = {
   // linear fixtures (T5 battens …) are drawn to scale from their body length
   4: `ALTER TABLE fixtures ADD COLUMN length_m REAL;
       ALTER TABLE library ADD COLUMN length_m REAL;`,
+  // KEYPLAN: material categories (12 built in + the studio's own) and the item fields every category needs.
+  // Items that existed before (Light Theory data) are lighting.
+  5: `CREATE TABLE categories (
+        id INTEGER PRIMARY KEY, prefix TEXT NOT NULL UNIQUE, name_th TEXT NOT NULL, name_en TEXT NOT NULL DEFAULT '',
+        unit TEXT NOT NULL DEFAULT 'ea', qty_mode TEXT NOT NULL DEFAULT 'plan', icon TEXT NOT NULL DEFAULT 'other',
+        builtin INTEGER NOT NULL DEFAULT 0, sort INTEGER NOT NULL DEFAULT 0, archived INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      INSERT INTO categories (prefix, name_th, name_en, unit, qty_mode, icon, builtin, sort) VALUES
+        ${BUILTIN_CATEGORIES.map((c, i) => `(${[c.prefix, c.name_th, c.name_en, c.unit, c.qty_mode, c.icon].map(q).join(', ')}, 1, ${i + 1})`).join(',\n        ')};
+      ALTER TABLE fixtures ADD COLUMN cat TEXT NOT NULL DEFAULT 'L';
+      ALTER TABLE fixtures ADD COLUMN room TEXT NOT NULL DEFAULT '';
+      ALTER TABLE fixtures ADD COLUMN size TEXT NOT NULL DEFAULT '';
+      ALTER TABLE fixtures ADD COLUMN qty_manual REAL;
+      ALTER TABLE fixtures ADD COLUMN status TEXT NOT NULL DEFAULT 'draft';
+      ALTER TABLE library ADD COLUMN cat TEXT NOT NULL DEFAULT 'L';
+      ALTER TABLE library ADD COLUMN size TEXT NOT NULL DEFAULT '';
+      CREATE INDEX idx_fix_cat ON fixtures(project_id, cat);
+      -- codes of deleted items: never issued again in that project
+      CREATE TABLE retired_codes (
+        project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE, code TEXT NOT NULL,
+        PRIMARY KEY (project_id, code)
+      );`,
 };
 
-/** Brings any database (new or older version) up to SCHEMA_VERSION. */
-export function migrate(db: Database.Database) {
+/** Brings any database (new or older version) up to SCHEMA_VERSION (or an older target, for tests of the upgrade path). */
+export function migrate(db: Database.Database, target = SCHEMA_VERSION) {
   let ver = db.pragma('user_version', { simple: true }) as number;
   if (ver === 0) {
     db.exec(SCHEMA_V1);
     db.pragma('user_version = 1');
     ver = 1;
   }
-  for (let v = ver + 1; v <= SCHEMA_VERSION; v++) {
+  for (let v = ver + 1; v <= target; v++) {
     db.transaction(() => {
       db.exec(migrations[v]);
       db.pragma(`user_version = ${v}`);

@@ -4,8 +4,9 @@ import type { User } from '../../shared/types';
 import { Projects } from './pages/Projects';
 import { Users } from './pages/Users';
 import { Library } from './pages/Library';
+import { Categories } from './pages/Categories';
 import { ProjectView } from './pages/ProjectView';
-import { Logo, Motif } from './ui';
+import { Logo } from './ui';
 
 interface AuthState {
   needsSetup: boolean;
@@ -40,34 +41,33 @@ function Login({ needsSetup, onDone }: { needsSetup: boolean; onDone: () => void
   return (
     <div className="login">
       <section className="login-hero">
-        <Logo h={88} />
-        <p className="concept">
-          แสงคือทฤษฎี
-          <br />
-          ที่พิสูจน์ได้
-          <br />
-          ในพื้นที่จริง
-        </p>
-        <p className="concept-en">light is a theory, proven in space.</p>
-        {/* graphic language: at most two elements per piece — a light beam and one hand-written note */}
-        <div className="login-motifs">
-          <Motif name="beam" width={110} weight="standard" />
-          <p className="hand-note">light the plan,<br />not the guess.</p>
-        </div>
-        <p className="studio">architectural lighting studio, bangkok · Lighting Platform</p>
+        <Logo h={56} />
+        <p className="concept">Plan. Price.<br />Your home.</p>
+        <p className="concept-th">แปลน รายการวัสดุ และราคา ในที่เดียว</p>
+        <p className="muted">จากแปลนและรหัสสินค้า สู่ BOQ ใบเสนอราคา และสเปคสำหรับลูกค้า สำหรับนักออกแบบภายในและสถาปนิก</p>
+        <p className="studio">KEYPLAN · คีย์แปลน · BETA</p>
       </section>
-      <form className="card login-card" onSubmit={submit}>
-        <h1>{needsSetup ? 'ตั้งค่าครั้งแรก' : 'เข้าสู่ระบบ'}</h1>
-        {needsSetup && <p className="muted">สร้างบัญชีผู้ดูแลระบบคนแรก (เพิ่มสมาชิกทีมได้ภายหลัง)</p>}
-        <label className="field"><span>อีเมล</span><input type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus required /></label>
-        {needsSetup && <label className="field"><span>ชื่อที่แสดง</span><input value={name} onChange={(e) => setName(e.target.value)} /></label>}
-        <label className="field"><span>รหัสผ่าน{needsSetup ? ' (อย่างน้อย 8 ตัว)' : ''}</span><input type="password" autoComplete={needsSetup ? "new-password" : "current-password"} value={pw} onChange={(e) => setPw(e.target.value)} required /></label>
-        {err && <div className="error">{err}</div>}
-        <button className="btn primary" type="submit">{needsSetup ? 'สร้างบัญชีและเริ่มใช้งาน' : 'เข้าสู่ระบบ'}</button>
-      </form>
+      <div className="login-side">
+        <form className="card login-card" onSubmit={submit}>
+          <h1>{needsSetup ? 'ตั้งค่าครั้งแรก' : 'เข้าสู่ระบบ'}</h1>
+          {needsSetup && <p className="muted">สร้างบัญชีผู้ดูแลคนแรก แล้วเพิ่มสมาชิกทีมได้ภายหลัง</p>}
+          <label className="field"><span>อีเมล</span><input type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus required /></label>
+          {needsSetup && <label className="field"><span>ชื่อที่แสดง</span><input value={name} onChange={(e) => setName(e.target.value)} /></label>}
+          <label className="field"><span>รหัสผ่าน{needsSetup ? ' (อย่างน้อย 8 ตัว)' : ''}</span><input type="password" autoComplete={needsSetup ? 'new-password' : 'current-password'} value={pw} onChange={(e) => setPw(e.target.value)} required /></label>
+          {err && <div className="error">{err}</div>}
+          <button className="btn primary" type="submit">{needsSetup ? 'สร้างบัญชีและเริ่มใช้งาน' : 'เข้าสู่ระบบ'}</button>
+        </form>
+      </div>
     </div>
   );
 }
+
+const NAV: [string, string, string, string][] = [
+  ['#/', 'PRJ', 'โปรเจกต์', 'Projects'],
+  ['#/library', 'LIB', 'คลังสินค้า', 'Library'],
+  ['#/categories', 'CAT', 'หมวดหมู่วัสดุ', 'Categories'],
+  ['#/users', 'TEAM', 'ทีม / บัญชี', 'Team'],
+];
 
 export function App() {
   const [auth, setAuth] = useState<AuthState | null>(null);
@@ -86,24 +86,32 @@ export function App() {
     location.hash = '#/';
     await refresh();
   };
+  const current = m ? '#/' : NAV.find(([h]) => h === hash)?.[0] ?? '#/';
   return (
     <div className="app">
-      <header className="topbar">
-        <a className="brand" href="#/" aria-label="light theory · หน้าโปรเจกต์">
-          <Logo h={34} />
-          <span className="brand-sub">Lighting Platform</span>
+      <aside className="sidebar">
+        <a className="brand" href="#/" aria-label="KEYPLAN · หน้าโปรเจกต์">
+          <Logo h={36} />
+          <span className="tagline">PLAN · PRICE · YOUR HOME</span>
         </a>
-        <nav>
-          <a href="#/" className={!m && hash !== '#/users' && hash !== '#/library' ? 'on' : ''}>โปรเจกต์</a>
-          <a href="#/library" className={hash === '#/library' ? 'on' : ''}>คลังโคม</a>
-          <a href="#/users" className={hash === '#/users' ? 'on' : ''}>ทีม / บัญชี</a>
-        </nav>
-        <div className="grow" />
-        <span className="muted who">{user.name}</span>
-        <button className="btn ghost" onClick={logout}>ออกจากระบบ</button>
-      </header>
-      {toast.msg && <div className="toast" onClick={() => toast.show('')}>{toast.msg}</div>}
-      {m ? <ProjectView key={m[1]} pid={Number(m[1])} tab={m[2] ?? 'plan'} toast={toast.show} /> : hash === '#/users' ? <Users me={user} toast={toast.show} /> : hash === '#/library' ? <Library me={user} toast={toast.show} /> : <Projects toast={toast.show} />}
+        {NAV.map(([h, code, th, en]) => (
+          <a key={h} href={h} className={`nav ${current === h ? 'on' : ''}`} title={en}>
+            <span className="navcode">{code}</span>{th}
+          </a>
+        ))}
+        <div className="foot">
+          <span className="muted small who trunc">{user.name}</span>
+          <button className="btn small" onClick={logout}>ออกจากระบบ</button>
+        </div>
+      </aside>
+      <div className="main">
+        {toast.msg && <div className="toast" role="status" onClick={() => toast.show('')}>{toast.msg}</div>}
+        {m ? <ProjectView key={m[1]} pid={Number(m[1])} tab={m[2] ?? 'plan'} toast={toast.show} />
+          : hash === '#/users' ? <Users me={user} toast={toast.show} />
+          : hash === '#/library' ? <Library me={user} toast={toast.show} />
+          : hash === '#/categories' ? <Categories me={user} toast={toast.show} />
+          : <Projects toast={toast.show} />}
+      </div>
     </div>
   );
 }

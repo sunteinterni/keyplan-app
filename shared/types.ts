@@ -1,10 +1,28 @@
 // Shared data types: used by the server (SQLite rows / JSON API), the web app and the PDF exporter.
 
-export type PointSymbol = 'downlight' | 'wall' | 'spot' | 'pendant' | 'linear'; // linear: T5 batten etc., a fixed-length line counted per piece
+// marker: generic item pin for every non-lighting category; the lighting symbols come from Light Theory
+export type PointSymbol = 'marker' | 'downlight' | 'wall' | 'spot' | 'pendant' | 'linear'; // linear: T5 batten etc., a fixed-length line counted per piece
 export type LineSymbol = 'track' | 'strip';
 export type SymbolKind = PointSymbol | LineSymbol;
 export type ColorKey = 'red' | 'blue' | 'green';
-export type Unit = 'ea' | 'm';
+export type Unit = 'ea' | 'set' | 'm' | 'm2' | 'ltr' | 'roll' | 'pnl' | 'pt' | 'ls'; // see shared/categories.ts UNITS
+import type { Status } from './brand';
+export type { Status };
+
+/** Material category (shared/categories.ts). Prefix is unique and never reused, even after it is archived. */
+export interface Category {
+  id: number;
+  prefix: string; // F, BI, L … or the studio's own (e.g. WD)
+  name_th: string;
+  name_en: string;
+  unit: Unit; // default unit for new items
+  qty_mode: 'plan' | 'manual'; // plan = counted from pins and lines; manual = typed in (area, length)
+  icon: string; // icon key in shared/categories.ts ICON_KEYS
+  builtin: number; // 1 = one of the 12 from the guideline
+  sort: number;
+  archived: number; // 1 = hidden from new items; existing items keep it
+  items?: number; // items in projects + library using it (list endpoint only)
+}
 
 export interface User {
   id: number;
@@ -50,7 +68,12 @@ export interface Floor {
 export interface Fixture {
   id: number;
   project_id: number;
-  code: string; // LT1, D1, LN1 ...
+  code: string; // F-01, BI-02, DL-01 ...
+  cat: string; // category prefix
+  room: string; // room / zone shown in the schedule
+  size: string; // W×D×H or other dimensions, free text
+  qty_manual: number | null; // typed quantity; overrides the plan count when set (always used for manual categories)
+  status: Status;
   model: string;
   name: string;
   finish: string;
@@ -96,7 +119,9 @@ export interface LibraryItem {
   photo_file: string | null;
   drawing_file: string | null;
   length_m: number | null;
-  category: string; // free text for grouping / search, e.g. "ดาวน์ไลท์", "โคมแขวน"
+  cat: string; // category prefix
+  size: string;
+  category: string; // sub-group, free text for grouping / search, e.g. "ดาวน์ไลท์", "โซฟา"
   created_by: number | null;
   created_at: string;
   updated_at: string;
@@ -139,6 +164,8 @@ export interface Circuit {
 
 export interface Bundle {
   project: Project;
+  categories: Category[];
+  retired: string[]; // codes of deleted items: never issued again in this project
   floors: Floor[];
   fixtures: Fixture[];
   placements: Placement[];

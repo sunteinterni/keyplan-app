@@ -114,8 +114,8 @@ test('central library: import a copy, review library edits, save and push back, 
   let r = await call('POST', '/api/library', { model: 'DL-1', name: 'ดาวน์ไลท์', symbol: 'downlight', color: 'green', price: 450, category: 'ดาวน์ไลท์' });
   assert.equal(r.status, 200, JSON.stringify(r.body));
   const lid = r.body.id;
-  r = await call('POST', `/api/projects/${pid}/fixtures/from-library`, { library_id: lid });
-  assert.equal(r.body.code, 'DL-01', 'downlight → DL prefix, brand format');
+  r = await call('POST', `/api/projects/${pid}/fixtures/from-library`, { library_id: lid, prefix: 'DL' });
+  assert.equal(r.body.code, 'DL-01', 'lighting sub-prefix chosen in the picker, brand format');
   const fid = r.body.id;
   let f = await fixtureOf(fid);
   assert.deepEqual([f.model, f.price, f.color, f.library_id], ['DL-1', 450, 'green', lid]);
@@ -155,19 +155,19 @@ test('central library: import a copy, review library edits, save and push back, 
 
   // linear (T5): body length is validated and travels through the library
   const t5 = (await call('POST', '/api/library', { model: 'T5-28W', symbol: 'linear', length_m: 0.6 })).body.id;
-  const t5fx = (await call('POST', `/api/projects/${pid}/fixtures/from-library`, { library_id: t5 })).body;
+  const t5fx = (await call('POST', `/api/projects/${pid}/fixtures/from-library`, { library_id: t5, prefix: 'T5' })).body;
   assert.equal(t5fx.code, 'T5-01');
   assert.equal((await fixtureOf(t5fx.id)).length_m, 0.6);
-  assert.equal((await fixtureOf(t5fx.id)).unit, 'ea');
+  assert.equal((await fixtureOf(t5fx.id)).unit, 'set', 'lighting is counted in sets (ชุด), not metres');
   await call('PATCH', `/api/fixtures/${t5fx.id}`, { length_m: 0 });
   assert.equal((await fixtureOf(t5fx.id)).length_m, null, 'non-positive length is cleared');
   await call('PATCH', `/api/fixtures/${t5fx.id}`, { length_m: 1.2 });
   assert.equal((await fixtureOf(t5fx.id)).length_m, 1.2);
 
-  // line items get LN codes
+  // line items take the category prefix by default (KEYPLAN: L-01 …); lighting sub-prefixes like LN are a choice in the picker
   const strip = (await call('POST', '/api/library', { model: 'STRIP-9', symbol: 'strip', price: 180 })).body.id;
   r = await call('POST', `/api/projects/${pid}/fixtures/from-library`, { library_id: strip });
-  assert.equal(r.body.code, 'LN-01');
+  assert.equal(r.body.code, 'L-01');
   assert.equal((await call('POST', `/api/projects/${pid}/fixtures/from-library`, { library_id: strip, prefix: 'ex' })).body.code, 'EX-01', 'user-chosen prefix');
   assert.equal((await fixtureOf(r.body.id)).unit, 'm');
 

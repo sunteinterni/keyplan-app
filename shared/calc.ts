@@ -1,5 +1,6 @@
 // Quantity, BOQ and Lighting Load Schedule calculations. Pure functions over a project bundle.
-import type { Bundle, Circuit, Fixture, Floor, LineEl } from './types';
+import type { Bundle, Category, Circuit, Fixture, Floor, LineEl } from './types';
+import { LIGHTING, categoryOf, isLengthUnit, sortCategories } from './categories';
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -30,14 +31,20 @@ export function lineLengthM(line: Pick<LineEl, 'pts'>, floor: Pick<Floor, 'mpp' 
 }
 
 export interface Qty {
-  perFloor: Record<number, number>;
-  total: number;
+  perFloor: Record<number, number>; // counted on the plan, per floor
+  plan: number; // counted on the plan, all floors
+  total: number; // quantity used in BOQ: the typed quantity when manual, else the plan count
+  manual: boolean; // total comes from qty_manual (manual category, or a typed override)
   uncalibrated: number; // lines of this fixture on floors without a scale
 }
 
+/** Manual categories (area / length work) never take QTY from pins; any item can override the plan count by typing a quantity. */
+export const isManualQty = (f: Pick<Fixture, 'cat' | 'qty_manual'>, cats: Category[]) =>
+  f.qty_manual != null || categoryOf(cats, f.cat).qty_mode === 'manual';
+
 export function quantities(b: Bundle): Record<number, Qty> {
   const q: Record<number, Qty> = {};
-  const get = (id: number) => (q[id] ??= { perFloor: {}, total: 0, uncalibrated: 0 });
+  const get = (id: number) => (q[id] ??= { perFloor: {}, plan: 0, total: 0, manual: false, uncalibrated: 0 });
   const add = (id: number, floorId: number, n: number) => {
     const e = get(id);
     e.perFloor[floorId] = (e.perFloor[floorId] ?? 0) + n;
@@ -56,17 +63,31 @@ export function quantities(b: Bundle): Record<number, Qty> {
     e.total = r2(e.total);
     for (const k of Object.keys(e.perFloor)) e.perFloor[+k] = r2(e.perFloor[+k]);
   }
+  const cats = b.categories ?? [];
+  for (const f of b.fixtures) {
+    const e = get(f.id);
+    e.plan = e.total;
+    e.manual = isManualQty(f, cats);
+    if (e.manual) e.total = r2(Math.max(0, f.qty_manual ?? 0));
+  }
   return q;
 }
 
 export interface BoqRow {
   fixture: Fixture;
+  category: Category;
   qty: Qty;
   price: number | null;
   amount: number;
 }
-export interface Boq {
+export interface BoqGroup {
+  category: Category;
   rows: BoqRow[];
+  sub: number;
+}
+export interface Boq {
+  rows: BoqRow[]; // in category order, then by code
+  groups: BoqGroup[];
   sub: number;
   discount: number;
   install: number;
@@ -81,21 +102,31 @@ export const byCode = (a: Fixture, b: Fixture) => a.code.replace(/\d+/g, '').loc
 
 export function boq(b: Bundle): Boq {
   const q = quantities(b);
+  const cats = b.categories ?? [];
+  const order = new Map(sortCategories(cats).map((c, i) => [c.prefix, i]));
+  const rank = (f: Fixture) => order.get(f.cat) ?? 999;
   const rows: BoqRow[] = b.fixtures
     .slice()
-    .sort(byCode)
+    .sort((a, z) => rank(a) - rank(z) || a.cat.localeCompare(z.cat) || byCode(a, z))
     .filter((f) => (q[f.id]?.total ?? 0) > 0)
     .map((f) => {
       const qty = q[f.id];
       const price = f.price;
-      return { fixture: f, qty, price, amount: price == null ? 0 : r2(price * qty.total) };
+      return { fixture: f, category: categoryOf(cats, f.cat), qty, price, amount: price == null ? 0 : r2(price * qty.total) };
     });
+  const groups: BoqGroup[] = [];
+  for (const r of rows) {
+    const last = groups[groups.length - 1];
+    if (last && last.category.prefix === r.category.prefix) last.rows.push(r);
+    else groups.push({ category: r.category, rows: [r], sub: 0 });
+  }
+  for (const g of groups) g.sub = r2(g.rows.reduce((a, r) => a + r.amount, 0));
   const sub = r2(rows.reduce((a, r) => a + r.amount, 0));
   const discount = Math.min(b.project.discount || 0, sub);
   const install = b.project.install_fee || 0;
   const base = r2(sub - discount + install);
   const vat = r2(base * ((b.project.vat_rate ?? 7) / 100));
-  return { rows, sub, discount, install, base, vat, grand: r2(base + vat), unpriced: rows.filter((r) => r.price == null).length };
+  return { rows, groups, sub, discount, install, base, vat, grand: r2(base + vat), unpriced: rows.filter((r) => r.price == null).length };
 }
 
 export interface LoadItem {
@@ -120,9 +151,10 @@ export interface LoadSchedule {
   totalAmps: number;
 }
 
+/** Lighting Load Schedule: lighting items only (other categories have no circuits). */
 export function loadSchedule(b: Bundle): LoadSchedule {
   const floors = new Map(b.floors.map((f) => [f.id, f]));
-  const fixtures = new Map(b.fixtures.map((f) => [f.id, f]));
+  const fixtures = new Map(b.fixtures.filter(isLighting).map((f) => [f.id, f]));
   const volts = b.project.voltage || 220;
   const pf = b.project.pf || 1;
   const bucket = new Map<number | null, Map<number, number>>();
@@ -149,8 +181,8 @@ export function loadSchedule(b: Bundle): LoadSchedule {
     return {
       circuit,
       items,
-      pieces: items.filter((i) => i.fixture.unit === 'ea').reduce((a, i) => a + i.qty, 0),
-      meters: r2(items.filter((i) => i.fixture.unit === 'm').reduce((a, i) => a + i.qty, 0)),
+      pieces: items.filter((i) => !isLengthUnit(i.fixture.unit)).reduce((a, i) => a + i.qty, 0),
+      meters: r2(items.filter((i) => isLengthUnit(i.fixture.unit)).reduce((a, i) => a + i.qty, 0)),
       watts,
       amps: r2(watts / (volts * pf)),
     };
@@ -176,20 +208,26 @@ export interface Issue {
   text: string;
 }
 
+export const isLighting = (f: Pick<Fixture, 'cat'>) => f.cat === LIGHTING;
+
 export function issues(b: Bundle): Issue[] {
   const out: Issue[] = [];
   const q = quantities(b);
   const used = b.fixtures.filter((f) => (q[f.id]?.total ?? 0) > 0 || (q[f.id]?.uncalibrated ?? 0) > 0).sort(byCode);
+  for (const f of b.fixtures.slice().sort(byCode)) {
+    if (q[f.id]?.manual && f.qty_manual == null) out.push({ level: 'warn', code: f.code, text: 'ยังไม่กรอกจำนวน (หมวดนี้กรอกจำนวนเอง)' });
+  }
   const kc: Record<string, number> = {};
-  used.forEach((f) => f.kelvin && (kc[f.kelvin] = (kc[f.kelvin] ?? 0) + 1));
+  used.filter(isLighting).forEach((f) => f.kelvin && (kc[f.kelvin] = (kc[f.kelvin] ?? 0) + 1));
   const dom = Object.keys(kc).sort((a, c) => kc[c] - kc[a])[0];
   for (const f of used) {
     const e = q[f.id];
-    if (!f.model) out.push({ level: 'crit', code: f.code, text: 'ยังไม่มีรหัสรุ่น' });
+    if (!f.model && !f.name) out.push({ level: 'crit', code: f.code, text: 'ยังไม่มีชื่อหรือรุ่น' });
     if (f.price == null) out.push({ level: 'warn', code: f.code, text: 'รอราคา' });
-    if (f.unit === 'ea' && f.spec_qty != null && f.spec_qty !== e.total)
+    if (!e.manual && !isLengthUnit(f.unit) && f.spec_qty != null && f.spec_qty !== e.total)
       out.push({ level: 'crit', code: f.code, text: `สเปคชีทระบุ ×${f.spec_qty} แต่บนแปลนมี ${e.total}` });
     if (e.uncalibrated) out.push({ level: 'crit', code: f.code, text: `มีเส้น ${e.uncalibrated} เส้นบนชั้นที่ยังไม่ตั้งสเกล จึงยังไม่นับความยาว` });
+    if (!isLighting(f)) continue;
     if (dom && f.kelvin && String(f.kelvin) !== dom) out.push({ level: 'cool', code: f.code, text: `${f.kelvin}K ต่างจากโคมส่วนใหญ่ (${dom}K)` });
     if (unitWatt(f) === 0) out.push({ level: 'warn', code: f.code, text: 'ยังไม่ระบุวัตต์ จึงไม่นับใน Load Schedule' });
   }

@@ -1,4 +1,5 @@
-// Loads a fictional sample project: two generated floor plans, specs, markers, a few lines and circuits.
+// Loads a fictional sample project: two generated floor plans, items in several material categories,
+// pins, a few lines and lighting circuits.
 // Every name is a [PLACEHOLDER] and the plans are drawn here — no client data lives in the repo.
 // Usage: npm run seed:demo  (refuses to run if the sample project already exists)
 import sharp from 'sharp';
@@ -68,7 +69,7 @@ function planSvg(p: PlanDef): string {
 const planImage = async (p: PlanDef) => saveImage(await sharp(Buffer.from(planSvg(p))).png().toBuffer());
 
 /* ---------- specs (generic types, placeholder models) ---------- */
-interface Spec { code: string; model: string; name: string; finish?: string; socket?: string; bulbs?: number; w?: number; wt?: number; k?: number; ip?: string; qty?: number; symbol: string; color: string; unit?: string; price?: number; note?: string }
+interface Spec { code: string; cat?: string; room?: string; size?: string; qtyManual?: number; status?: string; model: string; name: string; finish?: string; socket?: string; bulbs?: number; w?: number; wt?: number; k?: number; ip?: string; qty?: number; symbol: string; color: string; unit?: string; price?: number; note?: string }
 const S: Spec[] = [
   { code: 'LT1', model: '[MODEL]-01', name: 'โคมช่อ', socket: 'E27', bulbs: 6, k: 3000, qty: 1, symbol: 'pendant', color: 'red' },
   { code: 'LT2', model: '[MODEL]-02', name: 'โคมช่อกิ่งไม้', finish: 'ทอง', socket: 'G9', bulbs: 12, k: 3000, qty: 1, symbol: 'pendant', color: 'red' },
@@ -86,7 +87,19 @@ const S: Spec[] = [
   { code: 'LN1', model: '[MODEL] LED strip 9W/m', name: 'ไฟเส้น LED ซ่อนฝ้า', w: 9, k: 3000, symbol: 'strip', color: 'blue', unit: 'm', price: 180, note: 'ตัวอย่างข้อมูล (เส้นประ)' },
   { code: 'TR1', model: '[MODEL] Track 1 m', name: 'ราง Tracklight', symbol: 'track', color: 'red', unit: 'm', price: 650, note: 'ตัวอย่างข้อมูล' },
   { code: 'SP1', model: '[MODEL] Spot 12W', name: 'สปอตไลท์หัวราง', wt: 12, k: 3000, symbol: 'spot', color: 'red', price: 890, note: 'ตัวอย่างข้อมูล' },
+  // other material categories (KEYPLAN): pinned items are counted from the plan, area/length work is typed in
+  { code: 'F-01', cat: 'F', room: 'ห้องนั่งเล่น', model: '[MODEL]-SF3', name: 'โซฟา 3 ที่นั่ง', size: '220×95×80 ซม.', finish: 'ผ้าสีเทาอ่อน', symbol: 'marker', color: 'green', price: 42500, status: 'approved' },
+  { code: 'F-02', cat: 'F', room: 'ห้องทานอาหาร', model: '[MODEL]-DT6', name: 'โต๊ะอาหาร 6 ที่นั่ง', size: '180×90×75 ซม.', finish: 'ไม้โอ๊ค', symbol: 'marker', color: 'green', price: 28900, status: 'quoted' },
+  { code: 'F-03', cat: 'F', room: 'ห้องทานอาหาร', model: '[MODEL]-CH1', name: 'เก้าอี้ทานอาหาร', size: '46×52×80 ซม.', finish: 'ไม้โอ๊ค / หนัง', symbol: 'marker', color: 'green', qtyManual: 6, price: 4200, status: 'ordered' },
+  { code: 'BI-01', cat: 'BI', room: 'ห้องนอน 1', model: '', name: 'ตู้เสื้อผ้าบิวท์อิน', size: '240×60×260 ซม.', finish: 'ลามิเนตลายไม้', symbol: 'marker', color: 'blue', price: 68000 },
+  { code: 'PL-01', cat: 'PL', room: 'ห้องน้ำแขก', model: '[MODEL]-WC', name: 'สุขภัณฑ์แบบชิ้นเดียว', finish: 'ขาว', symbol: 'marker', color: 'blue', price: 15900, status: 'delivered' },
+  { code: 'S-01', cat: 'S', room: 'ชั้น 1', model: '[MODEL]-TL60', name: 'กระเบื้องพื้นแกรนิตโต้', size: '60×60 ซม.', finish: 'เทาด้าน', symbol: 'marker', color: 'green', unit: 'm2', qtyManual: 86.5, price: 890 },
+  { code: 'P-01', cat: 'P', room: 'ผนังทั้งหลัง', model: '[MODEL]-EGG', name: 'สีทาภายใน', finish: 'Eggshell ขาวนวล', symbol: 'marker', color: 'green', unit: 'm2', qtyManual: 240, price: 85 },
+  { code: 'CT-01', cat: 'CT', room: 'ครัว', model: '', name: 'ท็อปเคาน์เตอร์ควอตซ์', size: 'หนา 20 มม.', finish: 'ขาวลายหินอ่อน', symbol: 'marker', color: 'green', unit: 'm', price: 9500, status: 'issue', note: 'รอยืนยันความยาวหน้างาน' },
+  { code: 'D-01', cat: 'D', room: 'โถงทางเข้า', model: '', name: 'งานศิลปะติดผนัง', size: '120×80 ซม.', symbol: 'marker', color: 'green' },
 ];
+/** Lighting codes in the KEYPLAN format (L-01, LN-01 …); other categories are already written that way. */
+const kp = (c: string) => (/^[A-Z]+-\d+$/.test(c) ? c : c.replace(/^LT(\d+)$/, (_, n: string) => `L-${n.padStart(2, '0')}`).replace(/^([A-Z]+)(\d+)$/, (_, p: string, n: string) => `${p}-${n.padStart(2, '0')}`));
 
 /* ---------- markers, placed inside the generated rooms ---------- */
 const POINTS: { code: string; floor: 'f1' | 'f2'; x: number; y: number }[] = [
@@ -108,10 +121,15 @@ const POINTS: { code: string; floor: 'f1' | 'f2'; x: number; y: number }[] = [
   { code: 'LT11', floor: 'f2', x: 0.3, y: 0.48 },
   { code: 'LT12', floor: 'f2', x: 0.8, y: 0.28 },
   { code: 'LT13', floor: 'f2', x: 0.16, y: 0.74 }, // hall
+  { code: 'F-01', floor: 'f1', x: 0.25, y: 0.4 },
+  { code: 'F-02', floor: 'f1', x: 0.6, y: 0.4 },
+  { code: 'BI-01', floor: 'f2', x: 0.1, y: 0.2 },
+  { code: 'PL-01', floor: 'f1', x: 0.53, y: 0.8 },
+  { code: 'D-01', floor: 'f1', x: 0.2, y: 0.88 },
 ];
 
 const run = async () => {
-  const pid = Number(db.prepare("INSERT INTO projects(name, client, location, project_no, designer, revision, doc_date) VALUES(?, '[PLACEHOLDER]', '[PLACEHOLDER]', 'LT-0000-000', '[PLACEHOLDER]', 'A', date('now'))").run(NAME).lastInsertRowid);
+  const pid = Number(db.prepare("INSERT INTO projects(name, client, location, project_no, designer, revision, doc_date) VALUES(?, '[PLACEHOLDER]', '[PLACEHOLDER]', 'KP-0000-000', '[PLACEHOLDER]', 'A', date('now'))").run(NAME).lastInsertRowid);
   const floorIds: Record<string, number> = {};
   for (const [i, [key, name, def]] of ([['f1', 'ชั้น 1', F1], ['f2', 'ชั้น 2', F2]] as const).entries()) {
     const im = await planImage(def);
@@ -119,8 +137,9 @@ const run = async () => {
   }
   const fid: Record<string, number> = {};
   for (const [i, s] of S.entries()) {
-    fid[s.code] = Number(db.prepare(`INSERT INTO fixtures(project_id,code,model,name,finish,socket,bulbs,watt_per_lamp,watt_total,kelvin,ip,symbol,color,unit,price,note,spec_qty,sort)
-      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(pid, s.code, s.model, s.name, s.finish ?? '', s.socket ?? '', s.bulbs ?? null, s.w ?? null, s.wt ?? null, s.k ?? null, s.ip ?? '', s.symbol, s.color, s.unit ?? 'ea', s.price ?? null, s.note ?? '', s.qty ?? null, i).lastInsertRowid);
+    const cat = s.cat ?? 'L';
+    fid[s.code] = Number(db.prepare(`INSERT INTO fixtures(project_id,code,cat,room,size,qty_manual,status,model,name,finish,socket,bulbs,watt_per_lamp,watt_total,kelvin,ip,symbol,color,unit,price,note,spec_qty,sort)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(pid, kp(s.code), cat, s.room ?? '', s.size ?? '', s.qtyManual ?? null, s.status ?? 'draft', s.model, s.name, s.finish ?? '', s.socket ?? '', s.bulbs ?? null, s.w ?? null, s.wt ?? null, s.k ?? null, s.ip ?? '', s.symbol, s.color, s.unit ?? (cat === 'L' ? 'set' : cat === 'BI' || cat === 'PL' ? 'set' : 'ea'), s.price ?? null, s.note ?? '', s.qty ?? null, i).lastInsertRowid);
   }
   const circ: Record<string, number> = {};
   for (const [i, [n, area]] of ([['LV-01', 'ห้องนั่งเล่น / โถง'], ['LV-02', 'ห้องทานอาหาร / ครัว'], ['LV-03', 'ชั้น 2 ห้องนอน']] as const).entries())

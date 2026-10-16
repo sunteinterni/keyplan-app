@@ -25,20 +25,26 @@ export interface SymbolMeta {
   label: string;
   geometry: 'point' | 'line';
   rotatable: boolean;
+  lighting: boolean; // offered only for the Lighting category
 }
 
 export const SYMBOLS: SymbolMeta[] = [
-  { kind: 'downlight', label: 'ดาวน์ไลท์', geometry: 'point', rotatable: false },
-  { kind: 'wall', label: 'ไฟกิ่ง', geometry: 'point', rotatable: true },
-  { kind: 'spot', label: 'สปอตไลท์ (ลูกศร)', geometry: 'point', rotatable: true },
-  { kind: 'pendant', label: 'โคมตกแต่งห้อย (Pendant)', geometry: 'point', rotatable: false },
-  { kind: 'linear', label: 'โคมราง T5 / Linear', geometry: 'point', rotatable: true },
-  { kind: 'track', label: 'ราง Tracklight', geometry: 'line', rotatable: false },
-  { kind: 'strip', label: 'เส้นประ (ไฟเส้น)', geometry: 'line', rotatable: false },
+  { kind: 'marker', label: 'หมุดรายการ', geometry: 'point', rotatable: false, lighting: false },
+  { kind: 'downlight', label: 'ดาวน์ไลท์', geometry: 'point', rotatable: false, lighting: true },
+  { kind: 'wall', label: 'ไฟกิ่ง', geometry: 'point', rotatable: true, lighting: true },
+  { kind: 'spot', label: 'สปอตไลท์ (ลูกศร)', geometry: 'point', rotatable: true, lighting: true },
+  { kind: 'pendant', label: 'โคมตกแต่งห้อย (Pendant)', geometry: 'point', rotatable: false, lighting: true },
+  { kind: 'linear', label: 'โคมราง T5 / Linear', geometry: 'point', rotatable: true, lighting: true },
+  { kind: 'track', label: 'เส้นทึบ (ราง / ขอบ)', geometry: 'line', rotatable: false, lighting: false },
+  { kind: 'strip', label: 'เส้นประ (ไฟเส้น / ความยาว)', geometry: 'line', rotatable: false, lighting: false },
 ];
 
 export const symbolMeta = (k: SymbolKind): SymbolMeta => SYMBOLS.find((s) => s.kind === k) ?? SYMBOLS[0];
 export const isLineSymbol = (k: SymbolKind) => k === 'track' || k === 'strip';
+/** Symbols offered for a category: lighting gets every symbol, other categories the marker and the two lines. */
+export const symbolsFor = (lighting: boolean) => SYMBOLS.filter((s) => lighting || !s.lighting);
+/** Default plan symbol for a new item. */
+export const defaultSymbol = (lighting: boolean, lengthUnit = false): SymbolKind => (lengthUnit ? 'strip' : lighting ? 'downlight' : 'marker');
 
 /** Base stroke width used when drawing primitives (web and PDF use the same value). */
 export const strokeUnit = (r: number) => Math.max(1.3, r * 0.16);
@@ -74,6 +80,11 @@ export function pointSymbol(kind: SymbolKind, cx: number, cy: number, r: number,
     return { t: 'circle', cx: p[0], cy: p[1], r: rr, fill, sw };
   };
   switch (kind) {
+    case 'marker': {
+      // a small room-plan square with a centre dot: reads as "item here" without looking like a light
+      const k = 0.95 * r;
+      return [{ t: 'poly', pts: [T(-k, -k), T(k, -k), T(k, k), T(-k, k)], sw: 1.15 }, C(0, 0, 0.32 * r, true)];
+    }
     case 'downlight':
       return [C(0, 0, r), L(-1.45 * r, 0, 1.45 * r, 0), L(0, -1.45 * r, 0, 1.45 * r)];
     case 'wall':

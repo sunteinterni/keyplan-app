@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { Bundle } from '../../shared/types';
+import type { Bundle, Category } from '../../shared/types';
 
 export async function api<T = unknown>(method: string, url: string, body?: unknown): Promise<T> {
   const res = await fetch(url, {
@@ -35,6 +35,7 @@ export interface ProjectRow {
   doc_date: string;
   updated_at: string;
   points: number;
+  items?: number;
   floors: number;
 }
 
@@ -65,4 +66,12 @@ export function useToast() {
     return () => clearTimeout(t);
   }, [msg]);
   return { msg, show: setMsg };
+}
+
+/** Material categories (built-in + the studio's own); `reload()` refetches. */
+export function useCategories() {
+  const [items, setItems] = useState<Category[] | null>(null);
+  const reload = useCallback(async () => setItems(await api<Category[]>('GET', '/api/categories')), []);
+  useEffect(() => void reload(), [reload]);
+  return { items, reload };
 }
