@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"><style>body{margin:0}a{color:#A9432B}a:hover{color:#E8452C}</style></helmet>
+<div data-screen-label="FF&amp;E schedule A4 landscape" style="position:relative;width:1123px;height:794px;box-sizing:border-box;padding:36px 32px 28px;background:#FFFFFF;color:#1F1F1F;font-family:'IBM Plex Sans Thai',sans-serif;font-size:12px;line-height:1.4;display:flex;flex-direction:column;gap:16px;overflow:hidden">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:24px">
+    <img src="brand/logo/keyplan-horizontal-tagline-color.svg" alt="KEYPLAN คีย์แปลน" style="width:190px;height:auto">
+    <div style="display:grid;grid-template-columns:repeat(6,auto);column-gap:28px;row-gap:2px;text-align:left">
+      <div><div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#5E5A52">PROJECT / โครงการ</div><div style="font-weight:600;font-size:13px">Riverside Residence</div></div>
+      <div><div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#5E5A52">CLIENT / ลูกค้า</div><div style="font-weight:600;font-size:13px">Khun Anong S.</div></div>
+      <div><div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#5E5A52">SITE / สถานที่</div><div style="font-weight:600;font-size:13px">Sathorn, Bangkok</div></div>
+      <div><div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#5E5A52">REV</div><div style="font-weight:600;font-size:13px">01</div></div>
+      <div><div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#5E5A52">DATE / วันที่</div><div style="font-weight:600;font-size:13px">14.10.2026</div></div>
+      <div><div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#5E5A52">SHEET</div><div style="font-weight:600;font-size:13px">1 / 4</div></div>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:14px;padding:12px 0;border-top:2px solid #1F1F1F;border-bottom:1px solid #1F1F1F">
+    <img src="brand/icons/accent/lighting.svg" alt="" style="width:36px;height:36px">
+    <div style="font-family:'Manrope',sans-serif;font-weight:800;font-size:28px;letter-spacing:-.02em;line-height:1">FF&amp;E Schedule — Lighting</div>
+    <div style="font-weight:700;font-size:22px;color:#A9432B;line-height:1.3">งานแสงสว่าง</div>
+    <span style="margin-left:auto;display:inline-flex;font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:14px;line-height:1;border:1.5px solid #1F1F1F;border-radius:2px"><span style="background:#EADFCB;color:#1F1F1F;box-shadow:inset 0 -2px 0 #1F1F1F;padding:5px 7px">L</span><span style="padding:5px 8px">01–07</span></span>
+  </div>
+  <div style="display:flex;flex-direction:column">
+    <div style="display:grid;grid-template-columns:62px 44px 1fr 92px 124px 84px 32px 32px 70px 80px 88px;column-gap:8px;align-items:center;background:#EADFCB;color:#1F1F1F;box-shadow:inset 0 -2px 0 #1F1F1F;font-weight:600;font-size:12px;padding:8px 8px">
+      <div>Code</div><div>Img</div><div>Item / รายการ</div><div>Room / ห้อง</div><div>Supplier · Model</div><div>W×D×H cm</div><div style="text-align:right">Qty</div><div>Unit</div><div style="text-align:right">Unit ฿</div><div style="text-align:right">Total ฿</div><div>Status</div>
+    </div>
+    <sc-for list="{{ rows }}" as="r" hint-placeholder-count="7">
+      <div style="display:grid;grid-template-columns:62px 44px 1fr 92px 124px 84px 32px 32px 70px 80px 88px;column-gap:8px;align-items:center;padding:7px 8px;border-bottom:1px solid #CBBBA2;font-size:12px">
+        <div><span style="display:inline-block;font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:12px;line-height:1;padding:4px 6px;border:1.5px solid #1F1F1F;border-radius:2px;background:#F5F1E8">{{ r.code }}</span></div>
+        <div style="width:36px;height:36px;border:1px solid #CBBBA2;background:#F5F1E8 url(brand/pattern/keyplan-pattern-grid-paper.svg) 0 0/72px 72px"></div>
+        <div style="font-weight:500">{{ r.th }}<div style="font-weight:400;color:#5E5A52">{{ r.en }}</div></div>
+        <div>{{ r.room }}</div>
+        <div>{{ r.vendor }}<div style="font-family:'IBM Plex Mono',monospace;color:#5E5A52">{{ r.model }}</div></div>
+        <div style="font-family:'IBM Plex Mono',monospace">{{ r.dim }}</div>
+        <div style="text-align:right;font-family:'IBM Plex Mono',monospace">{{ r.qty }}</div>
+        <div>{{ r.unit }}</div>
+        <div style="text-align:right;font-family:'IBM Plex Mono',monospace">{{ r.price }}</div>
+        <div style="text-align:right;font-family:'IBM Plex Mono',monospace;font-weight:600">{{ r.total }}</div>
+        <div><span style="display:inline-flex;align-items:center;gap:6px;padding:2px 9px 2px 7px;border-radius:99px;font-weight:500;background:{{ r.bg }}"><i style="width:8px;height:8px;border-radius:50%;background:{{ r.dot }}"></i>{{ r.status }}</span></div>
+      </div>
+    </sc-for>
+    <div style="display:flex;justify-content:flex-end;gap:24px;padding:10px 8px;border-bottom:2px solid #1F1F1F;font-weight:600;font-size:13px"><span>Subtotal · รวม (excl. VAT)</span><span style="font-family:'IBM Plex Mono',monospace;width:96px;text-align:right">33,900</span></div>
+  </div>
+  <div style="margin-top:auto;display:flex;justify-content:space-between;align-items:flex-end;gap:24px">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <span style="display:inline-flex;align-items:center;gap:6px;padding:2px 9px 2px 7px;border-radius:99px;background:#EBE4D3"><i style="width:8px;height:8px;border-radius:50%;background:#5E5A52"></i>Specified</span>
+      <span style="display:inline-flex;align-items:center;gap:6px;padding:2px 9px 2px 7px;border-radius:99px;background:#E4EBE2"><i style="width:8px;height:8px;border-radius:50%;background:#4A614A"></i>Approved</span>
+      <span style="display:inline-flex;align-items:center;gap:6px;padding:2px 9px 2px 7px;border-radius:99px;background:#F6E2B8"><i style="width:8px;height:8px;border-radius:50%;background:#8A5200"></i>Ordered</span>
+      <span style="display:inline-flex;align-items:center;gap:6px;padding:2px 9px 2px 7px;border-radius:99px;background:#D5E6D9"><i style="width:8px;height:8px;border-radius:50%;background:#2D6A47"></i>Delivered</span>
+    </div>
+    <div style="text-align:right;color:#5E5A52;max-width:520px">ราคาเป็นการประมาณ ไม่ใช่ใบเสนอราคาผูกพัน · Prices are estimates, not a binding quotation.<br>Prepared with KEYPLAN · Pollux Design</div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1123,&quot;height&quot;:794}}">
+class Component extends DCLogic {
+  renderVals() {
+    const S = {
+      Specified: ['#EBE4D3', '#5E5A52'], Quoted: ['#EBE4D3', '#5E5A52'], Approved: ['#E4EBE2', '#4A614A'],
+      Ordered: ['#F6E2B8', '#8A5200'], Delivered: ['#D5E6D9', '#2D6A47']
+    };
+    const d = [
+      ['L', '01', 'โคมดาวน์ไลท์ฝังฝ้า', 'Recessed downlight 9W 3000K', 'ห้องนั่งเล่น Living', 'Supplier A', 'DL-9W30', 'Ø9×6', 12, 'pc', 450, 'Delivered'],
+      ['L', '02', 'ราง LED พร้อมสปอตไลท์', 'LED track with spots', 'ห้องนั่งเล่น Living', 'Supplier A', 'TR-2M', '200×3×4', 6, 'm', 1200, 'Ordered'],
+      ['L', '03', 'โคมแขวนแก้วโอปอล', 'Pendant, opal glass', 'ห้องอาหาร Dining', 'Supplier B', 'PD-OP40', 'Ø40×35', 2, 'pc', 3800, 'Ordered'],
+      ['L', '04', 'โคมไฟตั้งพื้นทองเหลือง', 'Floor lamp, brass', 'ห้องนั่งเล่น Living', 'Supplier B', 'FL-BR', '30×30×150', 1, 'pc', 6900, 'Quoted'],
+      ['L', '05', 'โคมกันน้ำห้องน้ำ IP65', 'Wet-area wall light', 'ห้องน้ำ Bath', 'Supplier A', 'WL-65', '12×8×8', 3, 'pc', 980, 'Approved'],
+      ['L', '06', 'ไฟเส้น LED ใต้ชั้นวาง', 'Under-shelf LED strip', 'ครัว Kitchen', 'Supplier C', 'ST-24V', '300×1×1', 3, 'm', 320, 'Specified'],
+      ['L', '07', 'สวิตช์หรี่ไฟ 2 ช่อง', 'Dimmer, 2-gang', 'ห้องนอน Bedroom', 'Supplier C', 'DM-2G', '8×8×4', 2, 'pc', 1450, 'Specified']
+    ];
+    const f = n => n.toLocaleString('en-US');
+    return { rows: d.map(r => ({ code: r[0] + '-' + r[1], th: r[2], en: r[3], room: r[4], vendor: r[5], model: r[6], dim: r[7], qty: r[8], unit: r[9], price: f(r[10]), total: f(r[8] * r[10]), status: r[11], bg: S[r[11]][0], dot: S[r[11]][1] })) };
+  }
+}
+</script>
+</body>
+</html>

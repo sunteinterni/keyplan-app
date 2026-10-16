@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"><style>body{margin:0}a{color:#A9432B}a:hover{color:#1F1F1F}</style></helmet>
+<x-import component-from-global-scope="deck-stage" from="./deck-stage.js" width="1920" height="1080" hint-size="100%,100%">
+
+<section data-label="01 Cover" data-speaker-notes="Foundation for the KEYPLAN web app. Light, print-safe, Thai-first." style="background:#F5F1E8;color:#1F1F1F;font-family:'IBM Plex Sans Thai',sans-serif">
+<div style="position:absolute;left:1380px;top:0;right:0;bottom:0;border-left:3px solid #1F1F1F;background:url(brand/pattern/keyplan-pattern-plan-furnished-canvas.svg) 0 0/480px 480px"></div>
+<div style="position:absolute;left:96px;top:88px"><img src="brand/logo/keyplan-horizontal-tagline-color.svg" alt="" style="width:420px;display:block"></div>
+<div style="position:absolute;left:96px;top:300px;width:1300px"><span style="font-family:'IBM Plex Mono',monospace;font-size:26px;font-weight:600;color:#A9432B">WEB APP DESIGN GUIDELINES</span>
+<div style="font-family:'Manrope',sans-serif;font-weight:800;font-size:150px;line-height:.92;letter-spacing:-.045em;margin-top:20px">Designing<br>the app</div>
+<div style="font-weight:700;font-size:52px;line-height:1.35;margin-top:14px">แนวทางออกแบบเว็บแอป KEYPLAN</div>
+<div style="font-size:28px;line-height:1.5;margin-top:16px;max-width:1000px">Tokens, layout, components and rules for building KEYPLAN as a web app. Light by default, so every screen prints cleanly.</div></div>
+<div style="position:absolute;left:96px;right:540px;bottom:64px;display:flex;justify-content:space-between;border-top:3px solid #1F1F1F;padding-top:16px;font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:500"><span>Version 1.0</span><span>October 2026</span><span>Pollux Design</span></div>
+</section>
+
+<section data-label="02 Principles and structure" data-speaker-notes="Four principles, then the product map." style="background:#F5F1E8;color:#1F1F1F;font-family:'IBM Plex Sans Thai',sans-serif">
+<div style="position:absolute;inset:0;padding:64px 96px;box-sizing:border-box;display:flex;flex-direction:column;gap:32px">
+<div style="display:flex;justify-content:space-between;border-bottom:3px solid #1F1F1F;padding-bottom:16px;font-family:'IBM Plex Mono',monospace;font-size:24px"><span style="font-weight:600;color:#A9432B">02 — PRINCIPLES</span><span style="color:#5E5A52">KEYPLAN Web App Guidelines · Rev 1.0</span></div>
+<div style="font-family:'Manrope',sans-serif;font-weight:800;font-size:84px;letter-spacing:-.04em;line-height:1">Four principles <span style="font-family:'IBM Plex Sans Thai',sans-serif;font-size:44px;letter-spacing:0;color:#5E5A52">หลักการ</span></div>
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:28px">
+<sc-for list="{{ principles }}" as="p" hint-placeholder-count="4"><div style="border-top:3px solid #1F1F1F;padding-top:16px"><div style="font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:600;color:#A9432B">{{ p.n }}</div><div style="font-family:'Manrope',sans-serif;font-weight:800;font-size:44px;letter-spacing:-.03em;line-height:1.05;margin:8px 0 4px">{{ p.t }}</div><div style="font-weight:700;font-size:28px;color:#5E5A52">{{ p.th }}</div><div style="font-size:26px;line-height:1.45;margin-top:10px">{{ p.d }}</div></div></sc-for></div>
+<div style="margin-top:auto"><div style="font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:600;margin-bottom:14px">PRODUCT MAP</div>
+<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:12px"><sc-for list="{{ modules }}" as="m" hint-placeholder-count="7"><div style="background:#fff;border:1.5px solid #1F1F1F;padding:16px 14px;display:flex;flex-direction:column;gap:6px"><span style="font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:600;color:#A9432B">{{ m.c }}</span><span style="font-family:'Manrope',sans-serif;font-weight:800;font-size:30px;letter-spacing:-.02em">{{ m.t }}</span><span style="font-weight:600;font-size:24px;color:#5E5A52">{{ m.th }}</span></div></sc-for></div></div>
+</div></section>
+
+<section data-label="03 Colour tokens" data-speaker-notes="Semantic roles, not just swatches." style="background:#F5F1E8;color:#1F1F1F;font-family:'IBM Plex Sans Thai',sans-serif">
+<div style="position:absolute;inset:0;padding:64px 96px;box-sizing:border-box;display:flex;flex-direction:column;gap:28px">
+<div style="display:flex;justify-content:space-between;border-bottom:3px solid #1F1F1F;padding-bottom:16px;font-family:'IBM Plex Mono',monospace;font-size:24px"><span style="font-weight:600;color:#A9432B">03 — COLOUR TOKENS</span><span style="color:#5E5A52">KEYPLAN Web App Guidelines · Rev 1.0</span></div>
+<div style="display:flex;align-items:baseline;gap:32px"><div style="font-family:'Manrope',sans-serif;font-weight:800;font-size:84px;letter-spacing:-.04em;line-height:1">Colour roles</div><div style="font-size:26px;line-height:1.4;max-width:900px;color:#5E5A52">Pages are Canvas, working surfaces are White. Charcoal is ink and lines only, never a large fill.</div></div>
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px;flex:1">
+<sc-for list="{{ colours }}" as="c" hint-placeholder-count="12"><div style="background:#fff;border:1.5px solid #1F1F1F;display:flex;flex-direction:column"><div style="height:96px;background:{{ c.hex }};border-bottom:1.5px solid #1F1F1F"></div><div style="padding:12px 16px;display:flex;flex-direction:column;gap:2px"><div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-family:'Manrope',sans-serif;font-weight:800;font-size:28px">{{ c.name }}</span><span style="font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:500">{{ c.hex }}</span></div><div style="font-family:'IBM Plex Mono',monospace;font-size:20px;color:#7A2E1B">{{ c.v }}</div><div style="font-size:24px;color:#5E5A52;line-height:1.3">{{ c.use }}</div></div></div></sc-for></div>
+</div></section>
+
+<section data-label="04 Status and feedback" data-speaker-notes="Status colours, always paired with text." style="background:#F5F1E8;color:#1F1F1F;font-family:'IBM Plex Sans Thai',sans-serif">
+<div style="position:absolute;inset:0;padding:64px 96px;box-sizing:border-box;display:flex;flex-direction:column;gap:28px">
+<div style="display:flex;justify-content:space-between;border-bottom:3px solid #1F1F1F;padding-bottom:16px;font-family:'IBM Plex Mono',monospace;font-size:24px"><span style="font-weight:600;color:#A9432B">04 — STATUS AND CONTRAST</span><span style="color:#5E5A52">KEYPLAN Web App Guidelines · Rev 1.0</span></div>
+<div style="font-family:'Manrope',sans-serif;font-weight:800;font-size:84px;letter-spacing:-.04em;line-height:1">Status &amp; feedback <span style="font-family:'IBM Plex Sans Thai',sans-serif;font-size:44px;letter-spacing:0;color:#5E5A52">สถานะ</span></div>
+<div style="display:grid;grid-template-columns:1.1fr 1fr;gap:56px;flex:1">
+<div style="display:flex;flex-direction:column;gap:14px"><sc-for list="{{ statuses }}" as="s" hint-placeholder-count="6"><div style="display:grid;grid-template-columns:230px 1fr;align-items:center;gap:20px;background:#fff;border:1.5px solid #1F1F1F;padding:12px 18px"><span style="display:inline-flex;align-items:center;gap:10px;background:{{ s.bg }};color:{{ s.fg }};border:1.5px solid {{ s.fg }};padding:6px 14px;font-weight:700;font-size:24px;width:fit-content"><i style="width:12px;height:12px;border-radius:6px;background:{{ s.fg }};display:block"></i>{{ s.t }}</span><span style="font-size:24px;line-height:1.3;color:#5E5A52">{{ s.d }}</span></div></sc-for></div>
+<div style="display:flex;flex-direction:column;gap:20px"><div style="font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:600">CONTRAST RULES</div>
+<div style="display:flex;flex-direction:column;gap:12px;font-size:26px;line-height:1.4">
+<div style="border-top:3px solid #1F1F1F;padding-top:12px"><b>Body text ≥ 4.5 : 1.</b> Charcoal on Canvas is 14.6 : 1. Warm Grey on Canvas is 5.9 : 1.</div>
+<div style="border-top:3px solid #1F1F1F;padding-top:12px"><b>Terracotta and Sage are fills.</b> For text on Canvas use Terracotta Deep or Sage Deep.</div>
+<div style="border-top:3px solid #1F1F1F;padding-top:12px"><b>Never colour alone.</b> Every status has a label and a dot, so it survives black-and-white printing.</div>
+<div style="border-top:3px solid #1F1F1F;padding-top:12px"><b>No dark surfaces.</b> Nothing larger than a chip may be filled with Charcoal.</div></div></div>
+</div></div></section>
+
+<section data-label="05 Typography" data-speaker-notes="Three families, one scale." style="background:#F5F1E8;color:#1F1F1F;font-family:'IBM Plex Sans Thai',sans-serif">
+<div style="position:absolute;inset:0;padding:64px 96px;box-sizing:border-box;display:flex;flex-direction:column;gap:24px">
+<div style="display:flex;justify-content:space-between;border-bottom:3px solid #1F1F1F;padding-bottom:16px;font-family:'IBM Plex Mono',monospace;font-size:24px"><span style="font-weight:600;color:#A9432B">05 — TYPOGRAPHY</span><span style="color:#5E5A52">KEYPLAN Web App Guidelines · Rev 1.0</span></div>
+<div style="display:flex;gap:56px;align-items:flex-end"><div style="font-family:'Manrope',sans-serif;font-weight:800;font-size:84px;letter-spacing:-.04em;line-height:1">Type scale</div>
+<div style="display:flex;gap:40px;font-size:24px;padding-bottom:8px"><span><b style="font-family:'Manrope',sans-serif;font-size:30px">Manrope</b><br>Display, headings, numbers</span><span><b style="font-size:30px">IBM Plex Sans Thai</b><br>UI, body, Thai and tables</span><span><b style="font-family:'IBM Plex Mono',monospace;font-size:28px">IBM Plex Mono</b><br>Codes, SKUs, units</span></div></div>
+<div style="border:1.5px solid #1F1F1F;background:#fff;display:flex;flex-direction:column">
+<div style="display:grid;grid-template-columns:200px 1fr 330px;background:#EADFCB;box-shadow:inset 0 -2px 0 #1F1F1F;padding:10px 20px;font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600"><span>TOKEN</span><span>SAMPLE</span><span>SPEC</span></div>
+<sc-for list="{{ typeScale }}" as="r" hint-placeholder-count="8"><div style="display:grid;grid-template-columns:200px 1fr 330px;align-items:center;padding:8px 20px;border-bottom:1px solid #CBBBA2"><span style="font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;color:#A9432B">{{ r.k }}</span><span style="{{ r.style }}">{{ r.s }}</span><span style="font-family:'IBM Plex Mono',monospace;font-size:22px;color:#5E5A52">{{ r.spec }}</span></div></sc-for></div>
+</div></section>
+
+<section data-label="06 Spacing and grid" data-speaker-notes="4px base unit." style="background:#F5F1E8;color:#1F1F1F;font-family:'IBM Plex Sans Thai',sans-serif">
+<div style="position:absolute;inset:0;padding:64px 96px;box-sizing:border-box;display:flex;flex-direction:column;gap:28px">
+<div style="display:flex;justify-content:space-between;border-bottom:3px solid #1F1F1F;padding-bottom:16px;font-family:'IBM Plex Mono',monospace;font-size:24px"><span style="font-weight:600;color:#A9432B">06 — SPACING, RADIUS, LINES</span><span style="color:#5E5A52">KEYPLAN Web App Guidelines · Rev 1.0</span></div>
+<div style="font-family:'Manrope',sans-serif;font-weight:800;font-size:84px;letter-spacing:-.04em;line-height:1">Spacing &amp; form</div>
+<div style="display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:56px;flex:1">
+<div><div style="font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:600;margin-bottom:14px">SPACE · 4 PX BASE</div><div style="display:flex;flex-direction:column;gap:10px"><sc-for list="{{ spaces }}" as="s" hint-placeholder-count="8"><div style="display:grid;grid-template-columns:110px 70px 1fr;align-items:center;gap:12px;font-family:'IBM Plex Mono',monospace;font-size:22px"><b>{{ s.k }}</b><span style="color:#5E5A52">{{ s.px }}</span><i style="display:block;height:20px;width:{{ s.w }};background:#E6765D;border:1.5px solid #1F1F1F"></i></div></sc-for></div></div>
+<div><div style="font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:600;margin-bottom:14px">RADIUS</div><div style="display:flex;flex-direction:column;gap:16px"><sc-for list="{{ radii }}" as="r" hint-placeholder-count="3"><div style="display:flex;align-items:center;gap:18px"><i style="display:block;width:96px;height:64px;background:#fff;border:2px solid #1F1F1F;border-radius:{{ r.px }}"></i><div style="font-size:24px;line-height:1.3"><b style="font-family:'IBM Plex Mono',monospace">{{ r.k }} · {{ r.px }}</b><br><span style="color:#5E5A52">{{ r.use }}</span></div></div></sc-for></div></div>
+<div><div style="font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:600;margin-bottom:14px">LINES AND DEPTH</div><div style="display:flex;flex-direction:column;gap:14px;font-size:24px;line-height:1.35"><div style="border:1.5px solid #1F1F1F;background:#fff;padding:12px 16px"><b>Line 1.5 px Charcoal</b><br><span style="color:#5E5A52">Cards, inputs, tables. Prints at any size.</span></div><div style="border:1px solid #CBBBA2;background:#fff;padding:12px 16px"><b>Hairline 1 px Beige</b><br><span style="color:#5E5A52">Row dividers, secondary panels.</span></div><div style="border:1.5px solid #1F1F1F;background:#fff;padding:12px 16px;box-shadow:6px 6px 0 #CBBBA2"><b>Offset shadow</b><br><span style="color:#5E5A52">Menus, modals only. Solid Beige, no blur.</span></div></div></div>
+</div></div></section>
+
+<section data-label="07 App shell" data-speaker-notes="Sidebar, top bar, work area, inspector." style="background:#F5F1E8;color:#1F1F1F;font-family:'IBM Plex Sans Thai',sans-serif">
+<div style="position:absolute;inset:0;padding:64px 96px;box-sizing:border-box;display:flex;flex-direction:column;gap:24px">
+<div style="display:flex;justify-content:space-between;border-bottom:3px solid #1F1F1F;padding-bottom:16px;font-family:'IBM Plex Mono',monospace;font-size:24px"><span style="font-weight:600;color:#A9432B">07 — APP SHELL</span><span style="color:#5E5A52">KEYPLAN Web App Guidelines · Rev 1.0</span></div>
+<div style="font-family:'Manrope',sans-serif;font-weight:800;font-size:84px;letter-spacing:-.04em;line-height:1">Layout <span style="font-family:'IBM Plex Sans Thai',sans-serif;font-size:44px;letter-spacing:0;color:#5E5A52">โครงหน้าจอ</span></div>
+<div style="display:grid;grid-template-columns:1080px 1fr;gap:48px;flex:1">
+<div style="position:relative;border:2px solid #1F1F1F;background:#F5F1E8;display:grid;grid-template-columns:200px 1fr 250px;grid-template-rows:64px 1fr">
+<div style="grid-row:1/3;background:#EFE8D8;border-right:1.5px solid #1F1F1F;padding:18px 14px;display:flex;flex-direction:column;gap:10px"><div style="display:flex;align-items:center;gap:10px"><img src="brand/logo/keyplan-mark-color.svg" alt="" style="width:36px;height:36px"><b style="font-family:'Manrope',sans-serif;font-size:22px;letter-spacing:-.02em">KEYPLAN</b></div><div style="height:12px"></div><div style="background:#EADFCB;border:1.5px solid #1F1F1F;padding:8px 10px;font-weight:700;font-size:20px">Items</div><div style="padding:8px 10px;font-size:20px;color:#5E5A52">Projects</div><div style="padding:8px 10px;font-size:20px;color:#5E5A52">Plans</div><div style="padding:8px 10px;font-size:20px;color:#5E5A52">BOQ</div><div style="padding:8px 10px;font-size:20px;color:#5E5A52">Schedule</div></div>
+<div style="grid-column:2/4;border-bottom:1.5px solid #1F1F1F;background:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 20px"><span style="font-family:'IBM Plex Mono',monospace;font-size:20px;color:#5E5A52">Projects / Rama 9 Condo / Items</span><span style="background:#E6765D;border:1.5px solid #1F1F1F;padding:4px 14px;font-weight:700;font-size:20px">+ Add item</span></div>
+<div style="padding:20px;display:flex;flex-direction:column;gap:12px"><div style="font-family:'Manrope',sans-serif;font-weight:800;font-size:34px;letter-spacing:-.03em">Items</div><div style="display:flex;gap:8px"><span style="border:1.5px solid #1F1F1F;background:#fff;padding:4px 12px;font-size:19px;font-weight:600">All</span><span style="border:1.5px solid #CBBBA2;padding:4px 12px;font-size:19px;color:#5E5A52">F-01</span><span style="border:1.5px solid #CBBBA2;padding:4px 12px;font-size:19px;color:#5E5A52">L-03</span></div><div style="flex:1;background:#fff;border:1.5px solid #1F1F1F;display:flex;flex-direction:column"><div style="background:#EADFCB;box-shadow:inset 0 -2px 0 #1F1F1F;height:34px"></div><div style="height:44px;border-bottom:1px solid #CBBBA2"></div><div style="height:44px;border-bottom:1px solid #CBBBA2"></div><div style="height:44px;border-bottom:1px solid #CBBBA2"></div><div style="height:44px;border-bottom:1px solid #CBBBA2"></div></div></div>
+<div style="border-left:1.5px solid #1F1F1F;background:#fff;padding:18px;display:flex;flex-direction:column;gap:10px"><span style="font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:600;color:#A9432B">F-01</span><div style="height:110px;background:#EADFCB;border:1.5px solid #1F1F1F"></div><div style="font-weight:700;font-size:22px">Item detail</div><div style="height:10px;background:#CBBBA2"></div><div style="height:10px;background:#CBBBA2;width:70%"></div></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:14px;font-size:24px;line-height:1.35"><sc-for list="{{ shell }}" as="s" hint-placeholder-count="5"><div style="border-top:3px solid #1F1F1F;padding-top:10px"><b style="font-family:'IBM Plex Mono',monospace;color:#A9432B">{{ s.k }}</b> <b>{{ s.t }}</b><br><span style="color:#5E5A52">{{ s.d }}</span></div></sc-for></div>
+</div></div></section>
+
+<section data-label="08 Buttons and inputs" data-speaker-notes="Primary is Terracotta fill with Charcoal text." style="background:#F5F1E8;color:#1F1F1F;font-family:'IBM Plex Sans Thai',sans-serif">
+<div style="position:absolute;inset:0;padding:64px 96px;box-sizing:border-box;display:flex;flex-direction:column;gap:26px">
+<div style="display:flex;justify-content:space-between;border-bottom:3px solid #1F1F1F;padding-bottom:16px;font-family:'IBM Plex Mono',monospace;font-size:24px"><span style="font-weight:600;color:#A9432B">08 — BUTTONS AND INPUTS</span><span style="color:#5E5A52">KEYPLAN Web App Guidelines · Rev 1.0</span></div>
+<div style="font-family:'Manrope',sans-serif;font-weight:800;font-size:84px;letter-spacing:-.04em;line-height:1">Controls <span style="font-family:'IBM Plex Sans Thai',sans-serif;font-size:44px;letter-spacing:0;color:#5E5A52">ปุ่มและช่องกรอก</span></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:56px;flex:1">
+<div style="display:flex;flex-direction:column;gap:18px"><div style="font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:600">BUTTONS · 44 PX HIGH</div>
+<div style="display:grid;grid-template-columns:150px repeat(3,1fr);gap:14px 14px;align-items:center;font-size:22px">
+<span style="font-family:'IBM Plex Mono',monospace;font-weight:600">Primary</span><span style="height:44px;display:flex;align-items:center;justify-content:center;background:#E6765D;border:1.5px solid #1F1F1F;font-weight:700;font-size:22px">Save item</span><span style="height:44px;display:flex;align-items:center;justify-content:center;background:#F08C75;border:1.5px solid #1F1F1F;font-weight:700;font-size:22px">Hover</span><span style="height:44px;display:flex;align-items:center;justify-content:center;background:#D4614A;border:1.5px solid #1F1F1F;font-weight:700;font-size:22px">Pressed</span>
+<span style="font-family:'IBM Plex Mono',monospace;font-weight:600">Secondary</span><span style="height:44px;display:flex;align-items:center;justify-content:center;background:#fff;border:1.5px solid #1F1F1F;font-weight:700;font-size:22px">Export</span><span style="height:44px;display:flex;align-items:center;justify-content:center;background:#EADFCB;border:1.5px solid #1F1F1F;font-weight:700;font-size:22px">Hover</span><span style="height:44px;display:flex;align-items:center;justify-content:center;background:#CBBBA2;border:1.5px solid #1F1F1F;font-weight:700;font-size:22px">Pressed</span>
+<span style="font-family:'IBM Plex Mono',monospace;font-weight:600">Text</span><span style="height:44px;display:flex;align-items:center;justify-content:center;color:#A9432B;font-weight:700;text-decoration:underline;font-size:22px">View BOQ</span><span style="height:44px;display:flex;align-items:center;justify-content:center;color:#1F1F1F;font-weight:700;text-decoration:underline;font-size:22px">Hover</span><span></span>
+<span style="font-family:'IBM Plex Mono',monospace;font-weight:600">Disabled</span><span style="height:44px;display:flex;align-items:center;justify-content:center;background:#EFE8D8;border:1.5px dashed #5E5A52;color:#5E5A52;font-weight:700;font-size:22px">Save item</span><span style="height:44px;display:flex;align-items:center;justify-content:center;background:#fff;border:1.5px solid #7A2E1B;color:#7A2E1B;font-weight:700;font-size:22px">Delete</span><span style="font-size:20px;color:#5E5A52">Destructive</span></div>
+<div style="font-size:24px;line-height:1.4;color:#5E5A52">One Primary per view. Disabled uses a dashed border so it reads in print. Destructive is outlined, never filled.</div></div>
+<div style="display:flex;flex-direction:column;gap:18px"><div style="font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:600">INPUTS · 44 PX HIGH</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+<div style="display:flex;flex-direction:column;gap:6px"><span style="font-weight:600;font-size:22px">Item name · ชื่อรายการ</span><span style="height:44px;box-sizing:border-box;display:flex;align-items:center;padding:0 14px;background:#fff;border:1.5px solid #1F1F1F;font-size:22px">โซฟา 3 ที่นั่ง</span></div>
+<div style="display:flex;flex-direction:column;gap:6px"><span style="font-weight:600;font-size:22px">Focus</span><span style="height:44px;box-sizing:border-box;display:flex;align-items:center;padding:0 14px;background:#fff;border:1.5px solid #1F1F1F;outline:3px solid #E6765D;outline-offset:2px;font-size:22px">F-01 |</span></div>
+<div style="display:flex;flex-direction:column;gap:6px"><span style="font-weight:600;font-size:22px">Error</span><span style="height:44px;box-sizing:border-box;display:flex;align-items:center;padding:0 14px;background:#fff;border:2px solid #7A2E1B;font-size:22px">-12</span><span style="font-size:20px;color:#7A2E1B;font-weight:600">Quantity must be 1 or more</span></div>
+<div style="display:flex;flex-direction:column;gap:6px"><span style="font-weight:600;font-size:22px">Disabled</span><span style="height:44px;box-sizing:border-box;display:flex;align-items:center;padding:0 14px;background:#EFE8D8;border:1.5px dashed #5E5A52;color:#5E5A52;font-size:22px">Auto · BI-02</span></div></div>
+<div style="display:flex;gap:28px;align-items:center;font-size:22px;margin-top:6px"><span style="display:flex;align-items:center;gap:10px"><i style="width:26px;height:26px;border:1.5px solid #1F1F1F;background:#E6765D;display:block;text-align:center;line-height:24px;font-style:normal;font-weight:800">✓</i>Checkbox</span><span style="display:flex;align-items:center;gap:10px"><i style="width:26px;height:26px;border:1.5px solid #1F1F1F;border-radius:13px;background:#fff;display:flex;align-items:center;justify-content:center"><b style="width:12px;height:12px;border-radius:6px;background:#A9432B;display:block"></b></i>Radio</span><span style="display:flex;align-items:center;gap:10px"><i style="width:52px;height:28px;border:1.5px solid #1F1F1F;border-radius:14px;background:#E6765D;display:block;position:relative"><b style="position:absolute;right:3px;top:3px;width:19px;height:19px;border-radius:10px;background:#fff;border:1.5px solid #1F1F1F;box-sizing:border-box;display:block"></b></i>Toggle</span></div>
+<div style="font-size:24px;line-height:1.4;color:#5E5A52">Labels sit above the field, always visible. Focus is a 3 px Terracotta ring with 2 px offset.</div></div>
+</div></div></section>
+
+<section data-label="09 Chips and codes" data-speaker-notes="Code tags are the anchor of the system." style="background:#F5F1E8;color:#1F1F1F;font-family:'IBM Plex Sans Thai',sans-serif">
+<div style="position:absolute;inset:0;padding:64px 96px;box-sizing:border-box;display:flex;flex-direction:column;gap:26px">
+<div style="display:flex;justify-content:space-between;border-bottom:3px solid #1F1F1F;padding-bottom:16px;font-family:'IBM Plex Mono',monospace;font-size:24px"><span style="font-weight:600;color:#A9432B">09 — CODES, CHIPS, ICONS</span><span style="color:#5E5A52">KEYPLAN Web App Guidelines · Rev 1.0</span></div>
+<div style="font-family:'Manrope',sans-serif;font-weight:800;font-size:84px;letter-spacing:-.04em;line-height:1">Codes &amp; categories <span style="font-family:'IBM Plex Sans Thai',sans-serif;font-size:44px;letter-spacing:0;color:#5E5A52">รหัสและหมวด</span></div>
+<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:14px">
+<sc-for list="{{ cats }}" as="c" hint-placeholder-count="12"><div style="background:#fff;border:1.5px solid #1F1F1F;padding:14px;display:flex;align-items:center;gap:14px"><img src="{{ c.src }}" alt="" style="width:48px;height:48px"><div style="display:flex;flex-direction:column;gap:2px"><span style="font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;color:#A9432B">{{ c.code }}</span><span style="font-weight:600;font-size:22px">{{ c.t }}</span></div></div></sc-for></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:56px">
+<div style="display:flex;flex-direction:column;gap:14px"><div style="font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:600">CODE TAG · MONO 500</div><div style="display:flex;gap:12px;flex-wrap:wrap"><span style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:24px;padding:4px 12px;border:1.5px solid #1F1F1F;background:#fff">F-01</span><span style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:24px;padding:4px 12px;border:1.5px solid #1F1F1F;background:#fff">BI-01</span><span style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:24px;padding:4px 12px;border:1.5px solid #1F1F1F;background:#EADFCB">L-03</span><span style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:24px;padding:4px 12px;border:1.5px solid #1F1F1F;background:#D5E6D9">S-02</span></div><div style="font-size:24px;line-height:1.4;color:#5E5A52">Category prefix, hyphen, two digits. Never reuse a code in one project. The tag is selectable and copyable.</div></div>
+<div style="display:flex;flex-direction:column;gap:14px"><div style="font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:600">FILTER CHIPS</div><div style="display:flex;gap:12px;flex-wrap:wrap"><span style="font-weight:600;font-size:22px;padding:6px 16px;border:1.5px solid #1F1F1F;background:#E6765D">Furniture · 8</span><span style="font-weight:600;font-size:22px;padding:6px 16px;border:1.5px solid #1F1F1F;background:#fff">Lighting · 5</span><span style="font-weight:600;font-size:22px;padding:6px 16px;border:1.5px solid #CBBBA2;background:#fff;color:#5E5A52">Surfaces · 3</span></div><div style="font-size:24px;line-height:1.4;color:#5E5A52">Selected chip is Terracotta fill. Icons are 24 px Charcoal in UI, 48 px in category tiles.</div></div>
+</div></div></section>
+
+<section data-label="10 Data table" data-speaker-notes="The FF&E table is the core screen." style="background:#F5F1E8;color:#1F1F1F;font-family:'IBM Plex Sans Thai',sans-serif">
+<div style="position:absolute;inset:0;padding:64px 96px;box-sizing:border-box;display:flex;flex-direction:column;gap:24px">
+<div style="display:flex;justify-content:space-between;border-bottom:3px solid #1F1F1F;padding-bottom:16px;font-family:'IBM Plex Mono',monospace;font-size:24px"><span style="font-weight:600;color:#A9432B">10 — DATA TABLE</span><span style="color:#5E5A52">KEYPLAN Web App Guidelines · Rev 1.0</span></div>
+<div style="font-family:'Manrope',sans-serif;font-weight:800;font-size:84px;letter-spacing:-.04em;line-height:1">FF&amp;E table <span style="font-family:'IBM Plex Sans Thai',sans-serif;font-size:44px;letter-spacing:0;color:#5E5A52">ตารางรายการ</span></div>
+<div style="border:1.5px solid #1F1F1F;background:#fff">
+<div style="display:grid;grid-template-columns:110px 80px 1fr 200px 90px 160px 190px;gap:12px;align-items:center;background:#EADFCB;box-shadow:inset 0 -2px 0 #1F1F1F;padding:12px 18px;font-weight:700;font-size:22px"><span>Code</span><span>Img</span><span>Item / รายการ</span><span>Room / ห้อง</span><span style="text-align:right">Qty</span><span style="text-align:right">Total ฿</span><span>Status</span></div>
+<sc-for list="{{ rows }}" as="r" hint-placeholder-count="4"><div style="display:grid;grid-template-columns:110px 80px 1fr 200px 90px 160px 190px;gap:12px;align-items:center;padding:12px 18px;border-bottom:1px solid #CBBBA2;font-size:24px"><span style="font-family:'IBM Plex Mono',monospace;font-weight:500;color:#A9432B">{{ r.code }}</span><i style="display:block;width:56px;height:56px;background:#EADFCB;border:1.5px solid #1F1F1F"></i><span style="font-weight:600">{{ r.name }}</span><span>{{ r.room }}</span><span style="text-align:right;font-family:'IBM Plex Mono',monospace">{{ r.qty }}</span><span style="text-align:right;font-family:'IBM Plex Mono',monospace;font-weight:500">{{ r.total }}</span><span style="display:inline-flex;align-items:center;gap:8px;background:{{ r.bg }};color:{{ r.fg }};border:1.5px solid {{ r.fg }};padding:3px 12px;font-weight:700;font-size:22px;width:fit-content"><i style="width:10px;height:10px;border-radius:5px;background:{{ r.fg }};display:block"></i>{{ r.st }}</span></div></sc-for></div>
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:24px;font-size:24px;line-height:1.35"><div style="border-top:3px solid #1F1F1F;padding-top:10px"><b>Header</b><br><span style="color:#5E5A52">Beige Soft, 2 px Charcoal underline, 22 px bold.</span></div><div style="border-top:3px solid #1F1F1F;padding-top:10px"><b>Rows</b><br><span style="color:#5E5A52">Compact 56 px, comfortable 72 px. Hairline dividers.</span></div><div style="border-top:3px solid #1F1F1F;padding-top:10px"><b>Numbers</b><br><span style="color:#5E5A52">Mono, right-aligned, thousands separators.</span></div><div style="border-top:3px solid #1F1F1F;padding-top:10px"><b>Print</b><br><span style="color:#5E5A52">Header repeats per page. No row splits across pages.</span></div></div>
+</div></section>
+
+<section data-label="11 Surfaces and messages" data-speaker-notes="Cards, modals, toasts, empty states." style="background:#F5F1E8;color:#1F1F1F;font-family:'IBM Plex Sans Thai',sans-serif">
+<div style="position:absolute;inset:0;padding:64px 96px;box-sizing:border-box;display:flex;flex-direction:column;gap:26px">
+<div style="display:flex;justify-content:space-between;border-bottom:3px solid #1F1F1F;padding-bottom:16px;font-family:'IBM Plex Mono',monospace;font-size:24px"><span style="font-weight:600;color:#A9432B">11 — SURFACES AND MESSAGES</span><span style="color:#5E5A52">KEYPLAN Web App Guidelines · Rev 1.0</span></div>
+<div style="font-family:'Manrope',sans-serif;font-weight:800;font-size:84px;letter-spacing:-.04em;line-height:1">Surfaces <span style="font-family:'IBM Plex Sans Thai',sans-serif;font-size:44px;letter-spacing:0;color:#5E5A52">การ์ด หน้าต่าง ข้อความ</span></div>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:40px;flex:1">
+<div style="display:flex;flex-direction:column;gap:14px"><div style="font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:600">PROJECT CARD</div><div style="background:#fff;border:1.5px solid #1F1F1F"><div style="height:130px;background:#EADFCB url(brand/pattern/keyplan-pattern-plan-canvas.svg) 0 0/240px 240px;border-bottom:1.5px solid #1F1F1F"></div><div style="padding:16px;display:flex;flex-direction:column;gap:6px"><span style="font-family:'IBM Plex Mono',monospace;font-size:20px;color:#5E5A52">PRJ-0142</span><span style="font-family:'Manrope',sans-serif;font-weight:800;font-size:30px;letter-spacing:-.02em">Rama 9 Condo</span><span style="font-size:24px;color:#5E5A52">48 items · ฿ 1,284,500</span></div></div></div>
+<div style="display:flex;flex-direction:column;gap:14px"><div style="font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:600">MODAL · ON CANVAS SCRIM</div><div style="background:rgba(203,187,162,.45);padding:22px;border:1.5px solid #CBBBA2"><div style="background:#fff;border:1.5px solid #1F1F1F;box-shadow:6px 6px 0 #CBBBA2;padding:18px;display:flex;flex-direction:column;gap:12px"><span style="font-family:'Manrope',sans-serif;font-weight:800;font-size:28px">Delete F-04?</span><span style="font-size:22px;line-height:1.35;color:#5E5A52">Removes the item from BOQ and 2 schedules.</span><div style="display:flex;gap:10px;justify-content:flex-end"><span style="padding:6px 16px;border:1.5px solid #1F1F1F;font-weight:700;font-size:20px">Cancel</span><span style="padding:6px 16px;border:1.5px solid #7A2E1B;color:#7A2E1B;font-weight:700;font-size:20px">Delete</span></div></div></div></div>
+<div style="display:flex;flex-direction:column;gap:14px"><div style="font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:600">TOAST AND ALERT</div>
+<div style="display:flex;align-items:center;gap:12px;background:#D5E6D9;border:1.5px solid #2D6A47;padding:12px 16px;font-weight:700;font-size:22px;color:#2D6A47"><b>✓</b>Schedule saved</div>
+<div style="display:flex;align-items:center;gap:12px;background:#F6E2B8;border:1.5px solid #8A5200;padding:12px 16px;font-weight:700;font-size:22px;color:#8A5200"><b>!</b>2 items have no supplier</div>
+<div style="display:flex;align-items:center;gap:12px;background:#F4D9D0;border:1.5px solid #7A2E1B;padding:12px 16px;font-weight:700;font-size:22px;color:#7A2E1B"><b>×</b>Export failed. Try again.</div>
+<div style="border:1.5px dashed #5E5A52;padding:16px;text-align:center;display:flex;flex-direction:column;gap:6px;align-items:center"><img src="brand/logo/keyplan-mark-mono.svg" alt="" style="width:40px;height:40px;opacity:.6"><b style="font-size:22px">No items yet · ยังไม่มีรายการ</b><span style="font-size:20px;color:#5E5A52">Empty state: one line and one action.</span></div></div>
+</div></div></section>
+
+<section data-label="12 Content and Thai" data-speaker-notes="Writing rules." style="background:#F5F1E8;color:#1F1F1F;font-family:'IBM Plex Sans Thai',sans-serif">
+<div style="position:absolute;inset:0;padding:64px 96px;box-sizing:border-box;display:flex;flex-direction:column;gap:26px">
+<div style="display:flex;justify-content:space-between;border-bottom:3px solid #1F1F1F;padding-bottom:16px;font-family:'IBM Plex Mono',monospace;font-size:24px"><span style="font-weight:600;color:#A9432B">12 — CONTENT, MOTION, ACCESS, PRINT</span><span style="color:#5E5A52">KEYPLAN Web App Guidelines · Rev 1.0</span></div>
+<div style="font-family:'Manrope',sans-serif;font-weight:800;font-size:84px;letter-spacing:-.04em;line-height:1">Behaviour <span style="font-family:'IBM Plex Sans Thai',sans-serif;font-size:44px;letter-spacing:0;color:#5E5A52">พฤติกรรมและการใช้งาน</span></div>
+<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:28px 56px">
+<sc-for list="{{ rules }}" as="r" hint-placeholder-count="4"><div style="border-top:3px solid #1F1F1F;padding-top:12px"><div style="font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:600;color:#A9432B">{{ r.k }}</div><ul style="margin:8px 0 0;padding-left:26px;font-size:26px;line-height:1.45;display:flex;flex-direction:column;gap:4px"><sc-for list="{{ r.items }}" as="i" hint-placeholder-count="4"><li>{{ i }}</li></sc-for></ul></div></sc-for></div>
+</div></section>
+
+<section data-label="13 Design tokens CSS" data-speaker-notes="Copy-paste starting point for the web app." style="background:#F5F1E8;color:#1F1F1F;font-family:'IBM Plex Sans Thai',sans-serif">
+<div style="position:absolute;inset:0;padding:64px 96px;box-sizing:border-box;display:flex;flex-direction:column;gap:24px">
+<div style="display:flex;justify-content:space-between;border-bottom:3px solid #1F1F1F;padding-bottom:16px;font-family:'IBM Plex Mono',monospace;font-size:24px"><span style="font-weight:600;color:#A9432B">13 — HANDOFF TOKENS</span><span style="color:#5E5A52">KEYPLAN Web App Guidelines · Rev 1.0</span></div>
+<div style="display:flex;align-items:baseline;gap:32px"><div style="font-family:'Manrope',sans-serif;font-weight:800;font-size:84px;letter-spacing:-.04em;line-height:1">Design tokens</div><div style="font-size:26px;color:#5E5A52">Start the build from these variables.</div></div>
+<div style="display:grid;grid-template-columns:1.25fr 1fr;gap:40px;flex:1">
+<pre style="margin:0;background:#fff;border:1.5px solid #1F1F1F;padding:20px 24px;font-family:'IBM Plex Mono',monospace;font-size:21px;line-height:1.5;white-space:pre-wrap">{{ cssText }}</pre>
+<div style="display:flex;flex-direction:column;gap:14px;font-size:26px;line-height:1.4"><div style="border-top:3px solid #1F1F1F;padding-top:10px"><b>Fonts</b><br><span style="color:#5E5A52">Load Manrope 600–800, IBM Plex Sans Thai 400–700, IBM Plex Mono 400–600.</span></div><div style="border-top:3px solid #1F1F1F;padding-top:10px"><b>Assets</b><br><span style="color:#5E5A52">Use the SVGs in brand/logo, brand/icons and brand/pattern. Colour logo on light only.</span></div><div style="border-top:3px solid #1F1F1F;padding-top:10px"><b>Breakpoints</b><br><span style="color:#5E5A52">Desktop ≥ 1280 first. Tablet 768–1279 collapses the inspector. Phone is view-only for schedules.</span></div><div style="border-top:3px solid #1F1F1F;padding-top:10px"><b>Check before ship</b><br><span style="color:#5E5A52">Print preview in greyscale. Thai text at 9–10 pt. Keyboard-only run through the FF&amp;E table.</span></div></div>
+</div></div></section>
+
+</x-import>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    const th = "font-family:'IBM Plex Sans Thai',sans-serif;";
+    const mf = "font-family:'Manrope',sans-serif;";
+    const mo = "font-family:'IBM Plex Mono',monospace;";
+    return {
+      principles: [
+        { n: '01', t: 'Light by default', th: 'สว่างและพิมพ์ได้', d: 'No dark surfaces. Every screen must read clearly on paper and in greyscale.' },
+        { n: '02', t: 'Code is the anchor', th: 'รหัสคือแกนหลัก', d: 'F-01, BI-01, L-03 link plan, BOQ, schedule and presentation.' },
+        { n: '03', t: 'Dense but calm', th: 'แน่นแต่ไม่รก', d: 'Tables carry the work. Colour is rare, so it means something.' },
+        { n: '04', t: 'Thai first', th: 'ไทยมาก่อน', d: 'Thai and English share every field. Layouts survive longer Thai strings.' }
+      ],
+      modules: [
+        { c: 'PRJ', t: 'Projects', th: 'โครงการ' }, { c: 'PLN', t: 'Plans', th: 'แปลน' }, { c: 'ITM', t: 'Items', th: 'รายการ' },
+        { c: 'LIB', t: 'Library', th: 'คลังสินค้า' }, { c: 'BOQ', t: 'BOQ', th: 'ถอดราคา' }, { c: 'FFE', t: 'Schedule', th: 'ตาราง FF&E' }, { c: 'PRS', t: 'Present', th: 'นำเสนอ' }
+      ],
+      colours: [
+        { name: 'Canvas', hex: '#F5F1E8', v: '--kp-canvas', use: 'Page background' },
+        { name: 'White', hex: '#FFFFFF', v: '--kp-white', use: 'Cards, inputs, tables' },
+        { name: 'Charcoal', hex: '#1F1F1F', v: '--kp-ink', use: 'Text, lines, icons' },
+        { name: 'Warm Grey', hex: '#5E5A52', v: '--kp-ink-2', use: 'Secondary text' },
+        { name: 'Beige', hex: '#CBBBA2', v: '--kp-line', use: 'Dividers, hairlines' },
+        { name: 'Beige Soft', hex: '#EADFCB', v: '--kp-fill', use: 'Table header, hover, selected' },
+        { name: 'Terracotta', hex: '#E6765D', v: '--kp-primary', use: 'Primary button, selected chip' },
+        { name: 'Terracotta Deep', hex: '#A9432B', v: '--kp-primary-text', use: 'Links, codes, accent text' },
+        { name: 'Terracotta Dark', hex: '#7A2E1B', v: '--kp-danger', use: 'Error text and borders' },
+        { name: 'Sage', hex: '#829B82', v: '--kp-sage', use: 'Secondary fills, plan objects' },
+        { name: 'Sage Deep', hex: '#4A614A', v: '--kp-sage-text', use: 'Sage text on light' },
+        { name: 'Sage Tint', hex: '#D5E6D9', v: '--kp-ok-bg', use: 'Success background' }
+      ],
+      statuses: [
+        { t: 'Draft', bg: '#EADFCB', fg: '#5E5A52', d: 'Not yet sent to the client.' },
+        { t: 'Quoted', bg: '#fff', fg: '#1F1F1F', d: 'Price sent, awaiting approval.' },
+        { t: 'Approved', bg: '#D5E6D9', fg: '#4A614A', d: 'Client signed off the item.' },
+        { t: 'Ordered', bg: '#F6E2B8', fg: '#8A5200', d: 'Purchase order placed.' },
+        { t: 'Delivered', bg: '#D5E6D9', fg: '#2D6A47', d: 'Received on site.' },
+        { t: 'Issue', bg: '#F4D9D0', fg: '#7A2E1B', d: 'Delayed, damaged or out of stock.' }
+      ],
+      typeScale: [
+        { k: 'display', s: 'Plan. Price.', style: mf + 'font-weight:800;font-size:64px;letter-spacing:-.04em;line-height:1', spec: 'Manrope 800 · 64/64' },
+        { k: 'h1', s: 'Rama 9 Condo', style: mf + 'font-weight:800;font-size:44px;letter-spacing:-.03em;line-height:1.1', spec: 'Manrope 800 · 44/48' },
+        { k: 'h2', s: 'ตารางรายการ FF&E', style: th + 'font-weight:700;font-size:32px;line-height:1.3', spec: 'Plex Thai 700 · 32/42' },
+        { k: 'h3', s: 'ห้องนั่งเล่น Living room', style: th + 'font-weight:600;font-size:26px;line-height:1.3', spec: 'Plex Thai 600 · 24/32' },
+        { k: 'body', s: 'โซฟาผ้าสีเบจ 3 ที่นั่ง ขนาด 220 × 95 × 82 ซม.', style: th + 'font-weight:400;font-size:24px;line-height:1.5', spec: 'Plex Thai 400 · 16/24' },
+        { k: 'label', s: 'Item name · ชื่อรายการ', style: th + 'font-weight:600;font-size:22px;line-height:1.3', spec: 'Plex Thai 600 · 14/20' },
+        { k: 'caption', s: 'อัปเดตล่าสุด 16 ต.ค. 2569', style: th + 'font-weight:400;font-size:22px;color:#5E5A52', spec: 'Plex Thai 400 · 12/18 min' },
+        { k: 'code', s: 'F-01  ฿ 42,500', style: mo + 'font-weight:500;font-size:26px', spec: 'Plex Mono 500 · 14/20' }
+      ],
+      spaces: [
+        { k: 'space-1', px: '4', w: '4%' }, { k: 'space-2', px: '8', w: '8%' }, { k: 'space-3', px: '12', w: '12%' }, { k: 'space-4', px: '16', w: '16%' },
+        { k: 'space-6', px: '24', w: '24%' }, { k: 'space-8', px: '32', w: '32%' }, { k: 'space-12', px: '48', w: '48%' }, { k: 'space-16', px: '64', w: '64%' }
+      ],
+      radii: [
+        { k: 'radius-sm', px: '2px', use: 'Chips, tags, inputs, buttons' },
+        { k: 'radius-md', px: '4px', use: 'Cards, tables, menus' },
+        { k: 'radius-full', px: '999px', use: 'Status dots, toggles, radios' }
+      ],
+      shell: [
+        { k: 'A', t: 'Sidebar 240 px', d: 'Beige-soft ground, 1.5 px right line. Collapses to 64 px icons.' },
+        { k: 'B', t: 'Top bar 64 px', d: 'White. Breadcrumb in mono left, one Primary action right.' },
+        { k: 'C', t: 'Work area', d: 'Canvas. 12 columns, 24 px gutter, 32 px padding, max 1440 px.' },
+        { k: 'D', t: 'Inspector 360 px', d: 'White. Item detail and edit. Closes below 1280 px.' },
+        { k: 'E', t: 'Sticky header row', d: 'Table headers and totals stay visible while scrolling.' }
+      ],
+      cats: [
+        { f: 'furniture', code: 'F', t: 'Furniture' }, { f: 'built-in', code: 'BI', t: 'Built-in' }, { f: 'lighting', code: 'L', t: 'Lighting' },
+        { f: 'surfaces', code: 'S', t: 'Surfaces' }, { f: 'paint', code: 'P', t: 'Paint' }, { f: 'plumbing', code: 'PL', t: 'Plumbing' },
+        { f: 'hardware', code: 'H', t: 'Hardware' }, { f: 'equipment', code: 'EQ', t: 'Equipment' }, { f: 'countertop', code: 'CT', t: 'Countertop' },
+        { f: 'decor', code: 'D', t: 'Decor' }, { f: 'signage', code: 'SG', t: 'Signage' }, { f: 'graphics', code: 'G', t: 'Graphics' }
+      ].map(c => ({ ...c, src: 'brand/icons/charcoal/' + c.f + '.svg' })),
+      rows: [
+        { code: 'F-01', name: 'โซฟา 3 ที่นั่ง', room: 'ห้องนั่งเล่น', qty: '1', total: '42,500', st: 'Approved', bg: '#D5E6D9', fg: '#4A614A' },
+        { code: 'L-03', name: 'โคมไฟแขวง', room: 'ห้องอาหาร', qty: '3', total: '18,900', st: 'Ordered', bg: '#F6E2B8', fg: '#8A5200' },
+        { code: 'BI-01', name: 'ตู้เสื้อผ้าบิวท์อิน', room: 'ห้องนอนใหญ่', qty: '1', total: '86,000', st: 'Quoted', bg: '#fff', fg: '#1F1F1F' },
+        { code: 'S-02', name: 'กระเบื้องลายไม้', room: 'ห้องนั่งเล่น', qty: '24', total: '31,200', st: 'Issue', bg: '#F4D9D0', fg: '#7A2E1B' }
+      ],
+      rules: [
+        { k: 'THAI AND ENGLISH', items: ['Thai first, English second, in one field pair.', 'Never truncate a Thai word mid-cluster. Wrap or ellipsis at word end.', 'Line height ≥ 1.5 for Thai body, 1.3 for headings.', 'Dates in Buddhist era for Thai, ISO for English.'] },
+        { k: 'VOICE', items: ['Short, literal verbs: Add item, Export BOQ.', 'Errors say what happened and what to do.', 'No exclamation marks, no emoji.', 'Currency: ฿ 1,284,500, no decimals unless unit price.'] },
+        { k: 'MOTION', items: ['120 ms for hover, 200 ms for panels. Ease-out.', 'Fade and 8 px slide only. No bounce.', 'Respect prefers-reduced-motion.', 'No animation inside tables.'] },
+        { k: 'ACCESS AND PRINT', items: ['Hit targets ≥ 44 px. Visible focus on every control.', 'Status = colour + dot + label.', 'Print: A4 and A3, 12 mm margins, light ground, no backgrounds required.', 'Print view hides sidebar, top bar and inspector.'] }
+      ],
+      cssText: ":root {\n  --kp-canvas:#F5F1E8; --kp-white:#FFFFFF;\n  --kp-ink:#1F1F1F;    --kp-ink-2:#5E5A52;\n  --kp-line:#CBBBA2;   --kp-fill:#EADFCB;\n  --kp-primary:#E6765D;\n  --kp-primary-text:#A9432B;\n  --kp-danger:#7A2E1B; --kp-danger-bg:#F4D9D0;\n  --kp-sage:#829B82;   --kp-sage-text:#4A614A;\n  --kp-ok:#2D6A47;     --kp-ok-bg:#D5E6D9;\n  --kp-warn:#8A5200;   --kp-warn-bg:#F6E2B8;\n\n  --font-display:'Manrope',sans-serif;\n  --font-ui:'IBM Plex Sans Thai',sans-serif;\n  --font-code:'IBM Plex Mono',monospace;\n\n  --space-1:4px; --space-2:8px; --space-3:12px;\n  --space-4:16px; --space-6:24px; --space-8:32px;\n  --radius-sm:2px; --radius-md:4px;\n  --line:1.5px solid var(--kp-ink);\n  --lift:6px 6px 0 var(--kp-line);\n  --focus:3px solid var(--kp-primary);\n}"
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+node_modules
+data/*
+!data/.gitkeep
+web/dist
+.env
+
+# ผลลัพธ์ PDF ที่อาจมีข้อมูลลูกค้า ไม่เก็บใน git (ยกเว้นคู่มือแบรนด์ใน docs/)
+*.pdf
+!docs/*.pdf
+.claude/launch.json
