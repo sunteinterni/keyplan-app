@@ -7,7 +7,7 @@ import { lineLengthM, quantities, byCode } from '../../../shared/calc';
 import { LIGHTING, categoryOf, sortCategories } from '../../../shared/categories';
 import { COLORS, COLOR_LABEL, LABEL_COLORS, ROTATIONS, SYMBOLS, markScale, linearLengthPx, baseRadius, isLineSymbol, lineStyle, pointSymbol, pointsAlong, symbolMeta, wiringPath } from '../../../shared/symbols';
 import type { ColorKey, Fixture, Floor, LineEl, Placement } from '../../../shared/types';
-import { CatIcon, ConfirmButton, Empty, FixtureChip, Prims, SymbolIcon, Txt, qty } from '../ui';
+import { CatIcon, ConfirmButton, Empty, FixtureChip, GlyphPicker, Prims, SymbolIcon, Txt, qty } from '../ui';
 import type { TabProps } from './common';
 
 type Tool = 'select' | 'place' | 'line' | 'scale' | 'wire';
@@ -497,7 +497,7 @@ export function PlanTab({ bundle, reload, toast }: TabProps) {
                   {fxList.map((f, i) => [
                     f.cat !== fxList[i - 1]?.cat && <div key={`h${f.cat}`} className="listgroup"><CatIcon icon={categoryOf(cats, f.cat).icon} size={16} />{f.cat} · {categoryOf(cats, f.cat).name_th}</div>,
                     <button key={f.id} className={`li ${f.id === activeFx && (tool === 'place' || tool === 'line') ? 'on' : ''}`} onClick={() => pickFixture(f)}>
-                      <SymbolIcon kind={f.symbol} color={f.color} />
+                      <SymbolIcon kind={f.symbol} glyph={f.glyph} color={f.color} />
                       <span className="code">{f.code}</span>
                       <span className="grow trunc small">{f.name || f.model}</span>
                       <span className="qty">{qty(q[f.id]?.perFloor[floor.id] ?? 0)}</span>
@@ -597,7 +597,7 @@ export function PlanTab({ bundle, reload, toast }: TabProps) {
                             <circle cx={cx} cy={cy} r={rs * 2.1} fill="none" stroke={BRAND.ink} strokeWidth={u * 1.2} strokeDasharray={`${r * 0.45} ${r * 0.35}`} />
                           </g>
                         )}
-                        <Prims prims={pointSymbol(f.symbol, cx, cy, rs, symbolMeta(f.symbol).rotatable ? p.rot : 0, f.symbol === 'linear' ? linearLengthPx(f.length_m, floor.mpp, r) : undefined)} color={color} u={u} />
+                        <Prims prims={pointSymbol(f.symbol, cx, cy, rs, symbolMeta(f.symbol).rotatable ? p.rot : 0, f.symbol === 'linear' ? linearLengthPx(f.length_m, floor.mpp, r) : undefined, f.glyph)} color={color} u={u} />
                         <text className="lbl" x={cx + rs * 0.9 + r * 0.3} y={cy - rs * 1.25 - r * 0.35} fontSize={r * 1.2} fill={LABEL_COLORS[f.color]}>{f.code}</text>
                         <circle className="hit" cx={cx} cy={cy} r={Math.max(r, rs) * 1.9} fill="transparent" onPointerDown={(e) => onItemDown(e, 'p', p.id, p.circuit_id)} />
                         {f.symbol === 'linear' && (() => {
@@ -763,8 +763,12 @@ function FixtureStyle({ f, edit }: { f: Fixture; edit: EditFn }) {
           </span>
         )}
       </div>
+      {!isLineSymbol(f.symbol) && (
+        <GlyphPicker compact cat={f.cat} value={f.symbol === 'glyph' ? f.glyph : null}
+          onPick={(code) => void edit({ t: 'patch', e: 'fixture', id: f.id, before: { symbol: f.symbol, glyph: f.glyph }, after: { symbol: 'glyph', glyph: code }, label: `สัญลักษณ์ ${f.code}` })} />
+      )}
       <div className="symgrid small">
-        {pointKinds.map((s) => (
+        {pointKinds.filter((s) => s.kind !== 'glyph').map((s) => (
           <button key={s.kind} className={`sym ${f.symbol === s.kind ? 'on' : ''}`} onClick={() => set('symbol', s.kind, 'เปลี่ยนสัญลักษณ์')}>
             <SymbolIcon kind={s.kind} color={f.color} size={26} />
             <span>{s.label}</span>

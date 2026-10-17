@@ -306,6 +306,14 @@ function drawPrims(doc: Doc, prims: ReturnType<typeof pointSymbol>, color: strin
       p.fill ? doc.fillAndStroke(color, color) : doc.stroke();
     } else if (p.t === 'line') {
       doc.path(primToSvg(p)).stroke();
+    } else if (p.t === 'path') {
+      // guideline symbol part: dashed = hidden or above the cut, tint = light 18 % fill
+      const w = u * (p.sw ?? 1);
+      doc.save().lineCap('round').lineJoin('round');
+      if (p.tint) doc.path(p.d).fillOpacity(0.18).fill(color).fillOpacity(1);
+      if (p.dash) doc.dash(w * 2, { space: w * 1.5 });
+      doc.path(p.d).lineWidth(w).strokeColor(color).stroke();
+      doc.undash().restore();
     } else {
       doc.path(primToSvg(p));
       p.fill ? doc.fillAndStroke(color, color) : doc.stroke();
@@ -325,7 +333,7 @@ function icon(doc: Doc, f: Fixture, x: number, y: number, size = 9) {
   } else {
     const r = size * 0.5;
     doc.translate(x - (f.symbol === 'spot' ? r : 0), y);
-    drawPrims(doc, pointSymbol(f.symbol, 0, 0, r, 0, f.symbol === 'linear' ? 14 : undefined), color, Math.max(0.9, r * 0.2));
+    drawPrims(doc, pointSymbol(f.symbol, 0, 0, f.symbol === 'glyph' ? r * 1.4 : r, 0, f.symbol === 'linear' ? 14 : undefined, f.glyph), color, Math.max(0.9, r * 0.2));
   }
   doc.restore();
 }
@@ -428,7 +436,7 @@ function drawPlan(c: Ctx, floor: Floor, box: PlanBox, mode: 'layout' | 'wiring')
     doc.save();
     if (dim) doc.opacity(0.7);
     const rs = f.symbol === 'linear' ? r : r * markScale(f.mark_size); // S / M / L pin size
-    drawPrims(doc, pointSymbol(f.symbol, cx, cy, rs, symbolMeta(f.symbol).rotatable ? p.rot : 0, f.symbol === 'linear' ? linearLengthPx(f.length_m, floor.mpp, r) : undefined), color, u);
+    drawPrims(doc, pointSymbol(f.symbol, cx, cy, rs, symbolMeta(f.symbol).rotatable ? p.rot : 0, f.symbol === 'linear' ? linearLengthPx(f.length_m, floor.mpp, r) : undefined, f.glyph), color, u);
     doc.restore();
     txt(doc, f.code, cx + rs * 0.9 + r * 0.3, cy - rs * 1.25 - r * 1.45, { size: r * 1.2, w: 600, color: LABEL_COLORS[f.color], halo: r * 0.35 });
   }

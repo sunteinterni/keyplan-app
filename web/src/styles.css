@@ -240,3 +240,14 @@ select.statussel { height: 34px; font-size: 13px; padding: 0 8px; }
 .toolgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
 .thumb.small { width: 32px; height: 32px; background: repeating-conic-gradient(var(--fill) 0 25%, var(--white) 0 50%) 50% / 10px 10px; }
 @media (max-width: 1100px) { .canvasgrid { grid-template-columns: 1fr; } .canvaspanel { position: static; } }
+
+/* guideline floor-plan symbols */
+.glyphgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 6px; margin-bottom: 10px; }
+.glyphgrid.compact { grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 4px; }
+.glyphbtn { font: inherit; display: flex; flex-direction: column; align-items: center; gap: 2px; border: var(--line); background: var(--white); border-radius: var(--r-md); padding: 6px 4px; cursor: pointer; color: var(--ink); min-height: 44px; }
+.glyphbtn:hover { background: var(--canvas); } .glyphbtn.on { background: var(--fill); box-shadow: inset 0 0 0 1.5px var(--ink); }
+.glyphbtn .gname { font-size: 11.5px; line-height: 1.25; text-align: center; }
+.glyphgrid.compact .glyphbtn { padding: 3px; min-height: 38px; }
+.glyphlist { display: flex; flex-direction: column; gap: 2px; max-height: 420px; overflow: auto; border-top: var(--hair); }
+.glyphrow { display: flex; align-items: center; gap: 10px; padding: 4px 2px; border-bottom: var(--hair); line-height: 1.3; }
+.glyphrow .codetag { width: 44px; font-size: 12px; }

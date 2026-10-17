@@ -5,7 +5,7 @@ import { searchText } from '../../../shared/library';
 import { COLORS, COLOR_LABEL, symbolsFor } from '../../../shared/symbols';
 import { LIGHTING, UNITS, categoryOf, isLengthUnit, sortCategories, unitTh } from '../../../shared/categories';
 import type { Category, ColorKey, Fixture, LibraryItem, User } from '../../../shared/types';
-import { CatIcon, ConfirmButton, Empty, Field, LengthPicker, SymbolIcon, Txt, money } from '../ui';
+import { CatIcon, ConfirmButton, Empty, Field, GlyphPicker, LengthPicker, SymbolIcon, Txt, money } from '../ui';
 
 /** Loads the central library; `reload()` refetches. Shared by this page and the items tab. */
 export function useLibrary() {
@@ -143,6 +143,7 @@ function LibraryForm({ it, cats, me, run, onDeleted }: { it: LibraryItem; cats: 
       </div>
       <div className="card">
         <h4>สัญลักษณ์บนแปลน (ค่าเริ่มต้นเมื่อนำเข้าโปรเจกต์)</h4>
+        <GlyphPicker cat={it.cat} value={it.symbol === 'glyph' ? it.glyph : null} onPick={(code) => run(() => api('PATCH', `/api/library/${it.id}`, { symbol: 'glyph', glyph: code }))} />
         <div className="symgrid">
           {symbolsFor(lighting).map((s) => (
             <button key={s.kind} className={`sym ${it.symbol === s.kind ? 'on' : ''}`} onClick={() => set('symbol', s.kind)}>

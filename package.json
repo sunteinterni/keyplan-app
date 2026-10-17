@@ -12,7 +12,8 @@
     "test": "tsx --test tests/*.test.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "fonts": "tsx scripts/build-fonts.ts",
-    "brand": "tsx scripts/extract-brand.ts"
+    "brand": "tsx scripts/extract-brand.ts",
+    "symbols": "tsx scripts/extract-symbols.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.2",

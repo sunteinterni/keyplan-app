@@ -8,13 +8,13 @@ import type { Fixture, LibraryItem } from './types';
  * per project, so it is only copied once on import and never overwritten later.
  */
 export const SPEC_FIELDS = [
-  'cat', 'model', 'name', 'size', 'finish', 'socket', 'bulbs', 'watt_per_lamp', 'watt_total', 'kelvin', 'ip',
+  'cat', 'model', 'name', 'size', 'glyph', 'finish', 'socket', 'bulbs', 'watt_per_lamp', 'watt_total', 'kelvin', 'ip',
   'symbol', 'unit', 'price', 'supplier', 'note', 'photo_file', 'drawing_file', 'length_m',
 ] as const;
 export type SpecField = (typeof SPEC_FIELDS)[number];
 
 export const FIELD_LABEL: Record<SpecField, string> = {
-  cat: 'หมวด', model: 'รุ่น', name: 'ชื่อ', size: 'ขนาด', finish: 'สี/ผิว', socket: 'ขั้วหลอด', bulbs: 'จำนวนหลอด', watt_per_lamp: 'วัตต์/หลอด',
+  cat: 'หมวด', model: 'รุ่น', name: 'ชื่อ', size: 'ขนาด', glyph: 'สัญลักษณ์บนแบบ', finish: 'สี/ผิว', socket: 'ขั้วหลอด', bulbs: 'จำนวนหลอด', watt_per_lamp: 'วัตต์/หลอด',
   watt_total: 'วัตต์รวม', kelvin: 'อุณหภูมิสี', ip: 'IP', symbol: 'สัญลักษณ์', unit: 'หน่วย', price: 'ราคา',
   supplier: 'ซัพพลายเออร์', note: 'หมายเหตุ', photo_file: 'รูปสินค้า', drawing_file: 'รูป Drawing', length_m: 'ความยาว (ม.)',
 };

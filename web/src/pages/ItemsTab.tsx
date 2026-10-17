@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { api, fileUrl, upload } from '../api';
 import { quantities, byCode, unitWatt } from '../../../shared/calc';
-import { COLORS, COLOR_LABEL, defaultSymbol, isLineSymbol, symbolsFor } from '../../../shared/symbols';
+import { COLORS, COLOR_LABEL, defaultSymbol, isLineSymbol, symbolMeta, symbolsFor } from '../../../shared/symbols';
 import { FIELD_LABEL, PREFIX_BY_SYMBOL, cleanPrefix, hasLibraryUpdate, libraryChanges, nextCode, type Change } from '../../../shared/library';
 import { LIGHTING, LIGHTING_PREFIXES, UNITS, categoryOf, isLengthUnit, sortCategories, unitTh } from '../../../shared/categories';
 import { STATUSES, STATUS_STYLE } from '../../../shared/brand';
 import type { Category, ColorKey, Fixture, LibraryItem, SymbolKind } from '../../../shared/types';
 import { filterLibrary, libPrice, libSpec, useLibrary } from './Library';
-import { CatIcon, ConfirmButton, Empty, Field, FixtureChip, LengthPicker, StatusChip, SymbolIcon, Txt, money, qty } from '../ui';
+import { CatIcon, ConfirmButton, Empty, Field, FixtureChip, GlyphPicker, LengthPicker, StatusChip, SymbolIcon, Txt, money, qty } from '../ui';
+import { glyphsFor } from '../../../shared/glyphs';
 import type { TabProps } from './common';
 
 /** Items (ITM): every coded item of the project, grouped by material category. */
@@ -36,10 +37,10 @@ export function ItemsTab({ bundle, reload, toast }: TabProps) {
       toast((e as Error).message);
     }
   };
-  const add = (cat: string, symbol: SymbolKind, prefix: string) =>
+  const add = (cat: string, symbol: SymbolKind, prefix: string, glyph: string | null) =>
     run(async () => {
       const code = nextCode(codes, prefix);
-      const r = await api<{ id: number }>('POST', `/api/projects/${bundle.project.id}/fixtures`, { cat, code, symbol });
+      const r = await api<{ id: number }>('POST', `/api/projects/${bundle.project.id}/fixtures`, { cat, code, symbol, glyph });
       setSel(r.id);
       setPanel('form');
       toast(`เพิ่ม ${code} แล้ว`);
@@ -72,7 +73,7 @@ export function ItemsTab({ bundle, reload, toast }: TabProps) {
               <div key={x.id} className="col">
                 {head && <div className="listgroup"><CatIcon icon={c.icon} size={16} />{c.prefix} · {c.name_th}</div>}
                 <button className={`li ${x.id === sel && panel === 'form' ? 'on' : ''}`} onClick={() => { setSel(x.id); setPanel('form'); }}>
-                  <SymbolIcon kind={x.symbol} color={x.color} />
+                  <SymbolIcon kind={x.symbol} glyph={x.glyph} color={x.color} />
                   <span className="code">{x.code}</span>
                   <span className="grow trunc">{x.name || x.model || <i className="muted">ยังไม่ตั้งชื่อ</i>}</span>
                   {x.library_id != null && (hasLibraryUpdate(x, libById.get(x.library_id)) ? <span className="tag hot" title="คลังมีข้อมูลใหม่">อัปเดต</span> : <span className="tag" title="มาจากคลังกลาง">คลัง</span>)}
@@ -177,8 +178,15 @@ function ItemForm({ f, cats, planQty, total, setField, setCategory, run, onDelet
       </div>
       <div className="card">
         <h4>สัญลักษณ์บนแปลน <span className="muted small" style={{ fontWeight: 400 }}>หมุนทีละ 90° ได้ที่แท็บแปลน (เลือกหมุดแล้วกดปุ่มหมุน หรือกด R)</span></h4>
+        {glyphsFor(f.cat).length > 0 && (
+          <>
+            <div className="muted small">ตามคู่มือสัญลักษณ์ FF&E (มุมมองด้านบน)</div>
+            <GlyphPicker cat={f.cat} value={f.symbol === 'glyph' ? f.glyph : null} onPick={(code) => run(() => api('PATCH', `/api/fixtures/${f.id}`, { symbol: 'glyph', glyph: code }))} />
+            <div className="muted small">หรือหมุดทั่วไป</div>
+          </>
+        )}
         <div className="symgrid">
-          {symbolsFor(lighting || f.symbol !== 'marker' && !isLineSymbol(f.symbol)).map((s) => {
+          {symbolsFor(lighting || symbolMeta(f.symbol).lighting).map((s) => {
             const lineNow = isLineSymbol(f.symbol);
             const blocked = (s.geometry === 'line') !== lineNow && used;
             return (
@@ -319,18 +327,20 @@ function LibraryStatus({ f, item, loaded, run }: { f: Fixture; item?: LibraryIte
 }
 
 /** New item: pick the category (tiles), then for lighting the symbol and prefix; the number is filled in (PREFIX-NN). */
-function NewItem({ cats, codes, initialCat, onCreate, onClose }: { cats: Category[]; codes: string[]; initialCat?: string; onCreate: (cat: string, symbol: SymbolKind, prefix: string) => void; onClose: () => void }) {
+function NewItem({ cats, codes, initialCat, onCreate, onClose }: { cats: Category[]; codes: string[]; initialCat?: string; onCreate: (cat: string, symbol: SymbolKind, prefix: string, glyph: string | null) => void; onClose: () => void }) {
   const [cat, setCat] = useState(initialCat && cats.some((c) => c.prefix === initialCat) ? initialCat : cats[0]?.prefix ?? 'F');
   const c = categoryOf(cats, cat);
   const lighting = cat === LIGHTING;
   const [symbol, setSymbol] = useState<SymbolKind>(defaultSymbol(lighting, isLengthUnit(c.unit)));
   const [prefix, setPrefix] = useState(cat);
   const [custom, setCustom] = useState('');
+  const [glyph, setGlyph] = useState<string | null>(null);
   const pick = (p: string) => {
     const nc = categoryOf(cats, p);
     setCat(p);
     setPrefix(p);
     setCustom('');
+    setGlyph(null);
     setSymbol(defaultSymbol(p === LIGHTING, isLengthUnit(nc.unit)));
   };
   const usePrefix = custom || prefix;
@@ -354,9 +364,10 @@ function NewItem({ cats, codes, initialCat, onCreate, onClose }: { cats: Categor
       </div>
       <p className="muted small">หน่วยเริ่มต้น {unitTh(c.unit)} · {c.qty_mode === 'manual' ? 'กรอกจำนวนเอง (งานพื้นที่/ความยาว)' : 'นับจำนวนจากหมุดบนแปลน'}</p>
       <h4>2 · สัญลักษณ์บนแปลน</h4>
+      <GlyphPicker cat={cat} value={symbol === 'glyph' ? glyph : null} onPick={(code) => { setGlyph(code); setSymbol('glyph'); }} />
       <div className="symgrid">
         {symbolsFor(lighting).map((s) => (
-          <button key={s.kind} className={`sym ${symbol === s.kind ? 'on' : ''}`} onClick={() => { setSymbol(s.kind); if (lighting && !custom && prefix !== LIGHTING) setPrefix(PREFIX_BY_SYMBOL[s.kind] ?? LIGHTING); }}>
+          <button key={s.kind} className={`sym ${symbol === s.kind ? 'on' : ''}`} onClick={() => { setSymbol(s.kind); setGlyph(null); if (lighting && !custom && prefix !== LIGHTING) setPrefix(PREFIX_BY_SYMBOL[s.kind] ?? LIGHTING); }}>
             <SymbolIcon kind={s.kind} color="red" size={34} />
             <span>{s.label}</span>
           </button>
@@ -372,7 +383,7 @@ function NewItem({ cats, codes, initialCat, onCreate, onClose }: { cats: Categor
         <span className="muted">รหัสที่จะได้</span>
         <b className="code bigcode">{code}</b>
         <div className="grow" />
-        <button className="btn primary" onClick={() => onCreate(cat, symbol, usePrefix)}>สร้าง {code}</button>
+        <button className="btn primary" onClick={() => onCreate(cat, symbol, usePrefix, symbol === 'glyph' ? glyph : null)}>สร้าง {code}</button>
       </div>
       <p className="muted small">เลขต่อจากรหัสเดิมที่ขึ้นต้นเหมือนกันในโปรเจกต์นี้ และไม่นำเลขที่ลบไปแล้วกลับมาใช้ แก้รหัสเองได้ในฟอร์ม</p>
     </div>

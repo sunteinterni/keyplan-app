@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { api, useCategories } from '../api';
 import { ICON_KEYS, UNITS, cleanCategoryPrefix, sortCategories } from '../../../shared/categories';
 import type { Category, User } from '../../../shared/types';
-import { CatIcon, Field, Txt } from '../ui';
+import { CatIcon, Field, GlyphIcon, Txt } from '../ui';
+import { glyphsFor } from '../../../shared/glyphs';
 
 const ICON_LABEL: Record<string, string> = {
   furniture: 'เฟอร์นิเจอร์', 'built-in': 'บิวท์อิน', lighting: 'ไฟ', surfaces: 'ผิว', paint: 'สี', plumbing: 'ประปา', hardware: 'ฮาร์ดแวร์',
@@ -150,6 +151,20 @@ function CategoryForm({ c, admin, run }: { c: Category; admin: boolean; run: (fn
           : <button className="btn danger" onClick={() => run(() => api('POST', `/api/categories/${c.id}/archive`, { archived: true }))}>เก็บถาวร (ซ่อนจากรายการใหม่)</button>
       )}
       <p className="muted small">ตัวนำหน้า {c.prefix} เปลี่ยนไม่ได้ เพื่อให้รหัสที่ออกไปแล้วบนแบบและใบเสนอราคาไม่เปลี่ยน</p>
+      <h4 className="mt">สัญลักษณ์บนแบบ ({glyphsFor(c.prefix).length})</h4>
+      {glyphsFor(c.prefix).length ? (
+        <div className="glyphlist">
+          {glyphsFor(c.prefix).map((g) => (
+            <div key={g.code} className="glyphrow" title={g.en}>
+              <GlyphIcon code={g.code} size={36} />
+              <span className="codetag">{g.code}</span>
+              <span className="grow small">{g.th}<br /><span className="muted">{g.en}</span></span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="muted small">{c.prefix === 'L' ? 'หมวดไฟใช้สัญลักษณ์โคม (ดาวน์ไลท์ สปอต ราง …) ที่มีอยู่แล้ว' : 'หมวดนี้ยังไม่มีสัญลักษณ์ตามคู่มือ ใช้หมุดสี่เหลี่ยม วงกลม หรือสามเหลี่ยมได้'}</p>
+      )}
     </div>
   );
 }

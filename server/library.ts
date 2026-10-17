@@ -7,7 +7,8 @@ import { requireAdmin } from './auth';
 import { saveImage } from './files';
 import { FIXTURE_RULES, bad, catRule, idOf, notRetired, num, patch, retiredCodes, row, str, touch, type Body, type Rule } from './common';
 import { SPEC_FIELDS, cleanPrefix, nextCode } from '../shared/library';
-import { defaultSymbol, isLineSymbol, symbolsFor } from '../shared/symbols';
+import { allowedSymbols, defaultSymbol, isLineSymbol } from '../shared/symbols';
+import { isGlyph } from '../shared/glyphs';
 import { LIGHTING, categoryOf, isLengthUnit } from '../shared/categories';
 import { listCategories } from './categories';
 import type { Fixture, LibraryItem } from '../shared/types';
@@ -64,7 +65,7 @@ export function registerLibraryRoutes(api: FastifyInstance) {
     const b = (req.body ?? {}) as Body;
     const cat = categoryOf(listCategories(), b.cat == null ? LIGHTING : (catRule(b.cat) as string));
     const lighting = cat.prefix === LIGHTING;
-    const symbol = symbolsFor(lighting).some((x) => x.kind === str(b.symbol)) ? str(b.symbol) : defaultSymbol(lighting, isLengthUnit(cat.unit));
+    const symbol = isGlyph(b.glyph) && !b.symbol ? 'glyph' : allowedSymbols(lighting).includes(str(b.symbol)) ? str(b.symbol) : defaultSymbol(lighting, isLengthUnit(cat.unit));
     const r = db.prepare(`INSERT INTO library (code, cat, symbol, unit, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ${NOW}, ${NOW})`)
       .run(nextLibCode(cat.prefix), cat.prefix, symbol, isLineSymbol(symbol as never) ? 'm' : cat.unit, req.user?.id ?? null);
     const id = Number(r.lastInsertRowid);

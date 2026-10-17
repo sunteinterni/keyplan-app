@@ -1,11 +1,13 @@
 // Drawing symbols as plain primitives so the web editor (SVG) and the PDF exporter (pdfkit)
 // draw exactly the same thing.
 import type { ColorKey, SymbolKind } from './types';
+import { glyphParts, glyphSize } from './glyphs';
 
 export type Prim =
   | { t: 'circle'; cx: number; cy: number; r: number; fill?: boolean; sw?: number }
   | { t: 'line'; x1: number; y1: number; x2: number; y2: number; sw?: number }
-  | { t: 'poly'; pts: [number, number][]; fill?: boolean; sw?: number };
+  | { t: 'poly'; pts: [number, number][]; fill?: boolean; sw?: number }
+  | { t: 'path'; d: string; dash?: boolean; tint?: boolean; sw?: number }; // guideline symbols: dashed = hidden / above, tint = 18 % fill
 
 export const COLORS: Record<ColorKey, string> = {
   red: '#E10600',
@@ -29,6 +31,7 @@ export interface SymbolMeta {
 }
 
 export const SYMBOLS: SymbolMeta[] = [
+  { kind: 'glyph', label: 'สัญลักษณ์ตามคู่มือ', geometry: 'point', rotatable: true, lighting: false },
   { kind: 'marker', label: 'สี่เหลี่ยม', geometry: 'point', rotatable: true, lighting: false },
   { kind: 'circle', label: 'วงกลม', geometry: 'point', rotatable: true, lighting: false },
   { kind: 'triangle', label: 'สามเหลี่ยม', geometry: 'point', rotatable: true, lighting: false },
@@ -51,7 +54,9 @@ export const isMarkSize = (s: unknown) => s === 'S' || s === 'M' || s === 'L';
 export const ROTATIONS = [0, 90, 180, 270] as const;
 
 /** Symbols offered for a category: lighting gets every symbol, other categories the three pin shapes and the two lines. */
-export const symbolsFor = (lighting: boolean) => SYMBOLS.filter((s) => lighting || !s.lighting);
+export const symbolsFor = (lighting: boolean) => SYMBOLS.filter((s) => s.kind !== 'glyph' && (lighting || !s.lighting));
+/** Symbols the server accepts for a category: the ones offered plus a guideline symbol. */
+export const allowedSymbols = (lighting: boolean) => [...symbolsFor(lighting).map((s) => s.kind as string), 'glyph'];
 /** Default plan symbol for a new item. */
 export const defaultSymbol = (lighting: boolean, lengthUnit = false): SymbolKind => (lengthUnit ? 'strip' : lighting ? 'downlight' : 'marker');
 
@@ -77,7 +82,12 @@ function xf(cx: number, cy: number, rot: number) {
 }
 
 /** Primitives of a point symbol centred on (cx, cy) with radius r. Rotation 0 points to +x. */
-export function pointSymbol(kind: SymbolKind, cx: number, cy: number, r: number, rot = 0, lenPx?: number): Prim[] {
+export function pointSymbol(kind: SymbolKind, cx: number, cy: number, r: number, rot = 0, lenPx?: number, glyph?: string | null): Prim[] {
+  if (kind === 'glyph') {
+    const parts = glyph ? glyphParts(glyph, cx, cy, glyphSize(r), rot) : [];
+    if (parts.length) return parts.map((p) => ({ t: 'path', d: p.d, dash: p.dash, tint: p.tint, sw: 0.7 }));
+    kind = 'marker'; // no symbol chosen yet: a plain pin
+  }
   const T = xf(cx, cy, rot);
   const L = (x1: number, y1: number, x2: number, y2: number, sw = 1): Prim => {
     const a = T(x1, y1);
@@ -199,5 +209,6 @@ const f = (n: number) => Math.round(n * 100) / 100;
 export function primToSvg(p: Prim): string {
   if (p.t === 'line') return `M${f(p.x1)} ${f(p.y1)} L${f(p.x2)} ${f(p.y2)}`;
   if (p.t === 'poly') return 'M' + p.pts.map((q) => `${f(q[0])} ${f(q[1])}`).join(' L') + ' Z';
+  if (p.t === 'path') return p.d;
   return '';
 }

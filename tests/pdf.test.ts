@@ -4,7 +4,7 @@ import { buildPdf } from '../server/pdf';
 import type { Bundle, Fixture } from '../shared/types';
 
 const fx = (o: Partial<Fixture> & { id: number; code: string }): Fixture => ({
-  project_id: 1, cat: 'L', room: '', size: '', qty_manual: null, status: 'draft', mark_size: 'M', model: 'M', name: 'โคมทดสอบ', finish: '', socket: 'E27', bulbs: 1, watt_per_lamp: 10, watt_total: null, kelvin: 3000, ip: '',
+  project_id: 1, cat: 'L', room: '', size: '', qty_manual: null, status: 'draft', mark_size: 'M', glyph: null, model: 'M', name: 'โคมทดสอบ', finish: '', socket: 'E27', bulbs: 1, watt_per_lamp: 10, watt_total: null, kelvin: 3000, ip: '',
   symbol: 'downlight', color: 'red', unit: 'ea', price: null, supplier: '', note: '', photo_file: null, drawing_file: null, spec_qty: null, sort: 0, library_id: null, library_synced_at: null, length_m: null, ...o,
 });
 

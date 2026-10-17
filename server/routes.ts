@@ -4,7 +4,8 @@ import { db } from './db';
 import { currentUser, endSession, hashPassword, requireAdmin, requireUser, startSession, verifyPassword } from './auth';
 import { isPdf, pdfPageCount, pdfPageToPng, rotatePlan, saveImage, uploadPath } from './files';
 import type { Bundle, Circuit, Fixture, Floor, LineEl, Placement, Project } from '../shared/types';
-import { defaultSymbol, isLineSymbol, symbolsFor } from '../shared/symbols';
+import { allowedSymbols, defaultSymbol, isLineSymbol } from '../shared/symbols';
+import { isGlyph } from '../shared/glyphs';
 import { LIGHTING, categoryOf, isLengthUnit } from '../shared/categories';
 import { nextCode } from '../shared/library';
 import { FIXTURE_RULES, bad, catRule, clamp01, idOf, notRetired, num, patch, retiredCodes, row, str, touch, type Body, type Rule } from './common';
@@ -203,8 +204,8 @@ export function registerRoutes(app: FastifyInstance) {
         const nid = Number(r.lastInsertRowid);
         const fm = new Map<number, number>(), fx = new Map<number, number>(), cm = new Map<number, number>();
         for (const f of src.floors) fm.set(f.id, Number(db.prepare('INSERT INTO floors (project_id, name, sort, plan_file, plan_w, plan_h, mpp, symbol_scale, plan_gray, plan_opacity, plan_orig, plan_rot) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)').run(nid, f.name, f.sort, f.plan_file, f.plan_w, f.plan_h, f.mpp, f.symbol_scale, f.plan_gray, f.plan_opacity, f.plan_orig, f.plan_rot).lastInsertRowid));
-        for (const f of src.fixtures) fx.set(f.id, Number(db.prepare(`INSERT INTO fixtures (project_id, code, cat, room, size, qty_manual, status, mark_size, model, name, finish, socket, bulbs, watt_per_lamp, watt_total, kelvin, ip, symbol, color, unit, price, supplier, note, photo_file, drawing_file, spec_qty, sort, library_id, library_synced_at, length_m)
-          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(nid, f.code, f.cat, f.room, f.size, f.qty_manual, f.status, f.mark_size, f.model, f.name, f.finish, f.socket, f.bulbs, f.watt_per_lamp, f.watt_total, f.kelvin, f.ip, f.symbol, f.color, f.unit, f.price, f.supplier, f.note, f.photo_file, f.drawing_file, f.spec_qty, f.sort, f.library_id, f.library_synced_at, f.length_m).lastInsertRowid));
+        for (const f of src.fixtures) fx.set(f.id, Number(db.prepare(`INSERT INTO fixtures (project_id, code, cat, room, size, qty_manual, status, mark_size, glyph, model, name, finish, socket, bulbs, watt_per_lamp, watt_total, kelvin, ip, symbol, color, unit, price, supplier, note, photo_file, drawing_file, spec_qty, sort, library_id, library_synced_at, length_m)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(nid, f.code, f.cat, f.room, f.size, f.qty_manual, f.status, f.mark_size, f.glyph, f.model, f.name, f.finish, f.socket, f.bulbs, f.watt_per_lamp, f.watt_total, f.kelvin, f.ip, f.symbol, f.color, f.unit, f.price, f.supplier, f.note, f.photo_file, f.drawing_file, f.spec_qty, f.sort, f.library_id, f.library_synced_at, f.length_m).lastInsertRowid));
         copyMoodboards(src.moodboards, nid);
         for (const code of src.retired) db.prepare('INSERT INTO retired_codes (project_id, code) VALUES (?, ?)').run(nid, code);
         for (const c of src.circuits) cm.set(c.id, Number(db.prepare('INSERT INTO circuits (project_id, name, area, breaker_a, note, sort) VALUES (?,?,?,?,?,?)').run(nid, c.name, c.area, c.breaker_a, c.note, c.sort).lastInsertRowid));
@@ -319,8 +320,9 @@ export function registerRoutes(app: FastifyInstance) {
       const cat = categoryOf(listCategories(), b.cat == null ? LIGHTING : (catRule(b.cat) as string));
       if (cat.archived) throw bad(`หมวด ${cat.name_th} ถูกเก็บถาวรแล้ว`);
       const lighting = cat.prefix === LIGHTING;
-      const allowed = symbolsFor(lighting).map((x) => x.kind as string);
-      const symbol = allowed.includes(str(b.symbol)) ? str(b.symbol) : defaultSymbol(lighting, isLengthUnit(cat.unit));
+      const allowed = allowedSymbols(lighting);
+      // a guideline symbol given on its own means "draw this symbol"
+      const symbol = isGlyph(b.glyph) && !b.symbol ? 'glyph' : allowed.includes(str(b.symbol)) ? str(b.symbol) : defaultSymbol(lighting, isLengthUnit(cat.unit));
       const codes = (db.prepare('SELECT code FROM fixtures WHERE project_id = ?').all(pid) as { code: string }[]).map((x) => x.code);
       const code = str(b.code) || nextCode([...codes, ...retiredCodes(pid)], cat.prefix);
       notRetired(pid, code);
@@ -341,7 +343,7 @@ export function registerRoutes(app: FastifyInstance) {
       if (!f) throw bad('ไม่พบรหัสนี้', 404);
       const b = (req.body ?? {}) as Body;
       const nextCat = 'cat' in b ? str(b.cat) : f.cat;
-      const allowed = symbolsFor(nextCat === LIGHTING).map((x) => x.kind as string);
+      const allowed = allowedSymbols(nextCat === LIGHTING);
       if ('symbol' in b && !allowed.includes(str(b.symbol))) throw bad('สัญลักษณ์นี้ใช้ได้เฉพาะหมวดไฟส่องสว่าง');
       // leaving Lighting takes the item out of every circuit, and a lighting point symbol becomes a plain marker
       if (nextCat !== LIGHTING && f.cat === LIGHTING) {

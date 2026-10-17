@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>body{margin:0;background:#f5f0e8}a{color:#a63d2a}a:hover{color:#1a1a1a}</style>
+</helmet>
+<div style="min-height:100vh;background:#f5f0e8;color:#1a1a1a;font-family:'IBM Plex Sans Thai',sans-serif;padding:48px 40px 80px;box-sizing:border-box">
+<div style="max-width:1280px;margin:0 auto;display:flex;flex-direction:column;gap:40px">
+
+<div style="display:flex;flex-direction:column;gap:8px">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.12em;color:#a63d2a">KEYPLAN · FF&amp;E · SYMBOL GUIDELINE</div>
+<h1 style="margin:0;font-size:40px;font-weight:700;line-height:1.2">คู่มือสัญลักษณ์ FF&amp;E</h1>
+<div style="font-size:15px;color:#4a4640;max-width:760px;line-height:1.6">สัญลักษณ์มาตรฐานสำหรับใช้บนแบบ แยกตามหมวดหมู่วัสดุทั้ง 11 หมวด เป็นแบบ Floor plan (มุมมองด้านบน) ทั้งหมด หมวดไฟส่องสว่างตัดออกเพราะมีแบบอยู่แล้ว แต่ละสัญลักษณ์มีรหัส (เช่น F-01) ใช้อ้างอิงตรงกับรายการใน Keyplan</div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px">
+<sc-for list="{{ rules }}" as="r" hint-placeholder-count="4">
+<div style="background:#fff;border:1px solid #1a1a1a;border-radius:6px;padding:16px;display:flex;gap:14px;align-items:center">
+<div style="flex:none;width:56px;height:56px">{{ r.svg }}</div>
+<div style="display:flex;flex-direction:column;gap:2px"><div style="font-weight:600;font-size:15px">{{ r.th }}</div><div style="font-size:13px;color:#4a4640;line-height:1.5">{{ r.note }}</div></div>
+</div>
+</sc-for>
+</div>
+
+<div style="display:flex;flex-wrap:wrap;gap:8px">
+<sc-for list="{{ cats }}" as="c" hint-placeholder-count="11">
+<a href="#{{ c.code }}" style="text-decoration:none;color:#1a1a1a;border:1px solid #1a1a1a;border-radius:999px;padding:6px 14px;font-size:13px;background:#fff;display:flex;gap:8px;align-items:baseline" style-hover="background:#1a1a1a;color:#fff"><span style="font-family:'IBM Plex Mono',monospace;color:#a63d2a;font-size:12px">{{ c.code }}</span>{{ c.th }}<span style="font-family:'IBM Plex Mono',monospace;font-size:12px;opacity:.7">{{ c.count }}</span></a>
+</sc-for>
+</div>
+
+<sc-for list="{{ cats }}" as="c" hint-placeholder-count="3">
+<section id="{{ c.code }}" style="display:flex;flex-direction:column;gap:16px;scroll-margin-top:24px">
+<div style="display:flex;align-items:flex-end;gap:16px;border-bottom:1px solid #1a1a1a;padding-bottom:12px">
+<div style="flex:none;width:56px;height:56px;border:1px solid #1a1a1a;border-radius:6px;background:#fff;padding:6px;box-sizing:border-box">{{ c.icon }}</div>
+<div style="display:flex;flex-direction:column;gap:2px;flex:1">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#a63d2a;letter-spacing:.08em">{{ c.code }}</div>
+<div style="font-size:24px;font-weight:700;line-height:1.2">{{ c.th }} <span style="font-weight:400;font-size:16px;color:#4a4640">· {{ c.en }}</span></div>
+</div>
+<div style="font-family:'IBM Plex Mono',monospace;font-size:13px">{{ c.count }} SYMBOLS</div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px">
+<sc-for list="{{ c.items }}" as="s" hint-placeholder-count="6">
+<div style="background:#fff;border:1px solid #1a1a1a;border-radius:6px;padding:14px 12px 12px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center">
+<div style="width:72px;height:72px">{{ s.svg }}</div>
+<div style="display:flex;flex-direction:column;gap:1px"><div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#a63d2a">{{ s.code }}</div><div style="font-size:14px;font-weight:600;line-height:1.3">{{ s.th }}</div><div style="font-size:12px;color:#4a4640">{{ s.en }}</div></div>
+</div>
+</sc-for>
+</div>
+</section>
+</sc-for>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  svg(spec, sw) {
+    const h = React.createElement;
+    const kids = spec.split(';').map((raw, i) => {
+      let s = raw.trim(), dash = false, fill = false;
+      if (s[0] === '~') { dash = true; s = s.slice(1); }
+      if (s[0] === '*') { fill = true; s = s.slice(1); }
+      const t = s[0], a = s.slice(1);
+      const n = a.split(',').map(Number);
+      const p = { key: i };
+      if (dash) p.strokeDasharray = '4 3';
+      if (fill) { p.fill = 'currentColor'; p.fillOpacity = 0.18; }
+      if (t === 'r') return h('rect', { ...p, x: n[0], y: n[1], width: n[2], height: n[3], rx: n[4] || 0 });
+      if (t === 'c') return h('circle', { ...p, cx: n[0], cy: n[1], r: n[2] });
+      if (t === 'e') return h('ellipse', { ...p, cx: n[0], cy: n[1], rx: n[2], ry: n[3] });
+      if (t === 'l') return h('line', { ...p, x1: n[0], y1: n[1], x2: n[2], y2: n[3] });
+      return h('path', { ...p, d: s });
+    });
+    return h('svg', { viewBox: '0 0 64 64', width: '100%', height: '100%', fill: 'none', stroke: 'currentColor', strokeWidth: sw || 2, strokeLinecap: 'round', strokeLinejoin: 'round' }, kids);
+  }
+  renderVals() {
+    const D = [
+['F','เฟอร์นิเจอร์','Furniture',[
+['3-Seat Sofa','โซฟา 3 ที่นั่ง','r6,12,52,10,3;r6,22,8,26,3;r50,22,8,26,3;r14,24,36,24;l26,24,26,48;l38,24,38,48'],
+['2-Seat Sofa','โซฟา 2 ที่นั่ง','r10,12,44,10,3;r10,22,8,26,3;r46,22,8,26,3;r18,24,28,24;l32,24,32,48'],
+['L-Shape Sofa','โซฟาตัว L','M8,10 H56 V30 H34 V54 H8 Z;M14,16 H50 V24 H28 V48 H14 Z'],
+['Armchair','เก้าอี้นวม','r12,10,40,10,3;r12,20,8,30,3;r44,20,8,30,3;r22,22,20,26,3'],
+['Chaise Lounge','เก้าอี้เลานจ์','r8,12,48,12,4;r8,24,48,14,3;r8,38,26,14,3'],
+['Ottoman','สตูลนวม','r14,14,36,36,10;r20,20,24,24,6'],
+['Dining Chair','เก้าอี้ทานอาหาร','r16,12,32,8,3;r18,20,28,28,5'],
+['Stool','สตูล / บาร์สตูล','c32,32,14;c32,32,8'],
+['Dining Table 4','โต๊ะอาหาร 4 ที่นั่ง','r16,16,32,32,2;r24,6,16,6,2;r24,52,16,6,2;r6,24,6,16,2;r52,24,6,16,2'],
+['Dining Table 6','โต๊ะอาหาร 6 ที่นั่ง','r12,20,40,24,2;r16,10,10,6,2;r38,10,10,6,2;r16,48,10,6,2;r38,48,10,6,2;r3,26,6,12,2;r55,26,6,12,2'],
+['Round Table 4','โต๊ะกลม 4 ที่นั่ง','c32,32,12;c32,12,5;c32,52,5;c12,32,5;c52,32,5'],
+['Round Table 8','โต๊ะกลม 8 ที่นั่ง','c32,32,13;c32,9,4;c48,16,4;c55,32,4;c48,48,4;c32,55,4;c16,48,4;c9,32,4;c16,16,4'],
+['Oval Table','โต๊ะวงรี','e32,32,22,13;c18,14,4;c32,11,4;c46,14,4;c18,50,4;c32,53,4;c46,50,4'],
+['Coffee Table','โต๊ะกลางห้อง','r12,20,40,24,6;r17,25,30,14,3'],
+['Side Table','โต๊ะข้าง (เหลี่ยม)','r16,16,32,32,2;c32,32,10'],
+['Round Side Table','โต๊ะข้าง (กลม)','c32,32,16;c32,32,10'],
+['Double Bed','เตียงคู่','r12,8,40,50,2;r12,8,40,5;r16,16,14,9,3;r34,16,14,9,3;l12,34,52,34;r2,8,8,8;r54,8,8,8'],
+['Single Bed','เตียงเดี่ยว','r18,8,28,50,2;r18,8,28,5;r22,16,20,10,3;l18,34,46,34'],
+['Desk','โต๊ะทำงาน','r6,12,52,22,2;l40,12,40,34;r24,40,16,12,4'],
+['L-Desk','โต๊ะทำงานตัว L','M6,8 H58 V26 H26 V56 H6 Z;c44,42,7'],
+['Bench','ม้านั่งยาว','r6,22,52,20,3']]],
+['BI','งานบิวท์อิน','Built-in',[
+['Wardrobe (Swing)','ตู้เสื้อผ้าบานเปิด','r6,14,52,22;l32,14,32,36;l6,36,6,49;~M19,36 A13,13 0 0 1 6,49;l58,36,58,49;~M45,36 A13,13 0 0 0 58,49'],
+['Wardrobe (Sliding)','ตู้เสื้อผ้าบานเลื่อน','r6,16,52,22;r6,19,32,6;r26,29,32,6'],
+['Base Cabinet','ตู้ครัวล่าง','r6,18,52,24;l22,18,22,42;l42,18,42,42'],
+['Wall Cabinet','ตู้แขวนผนัง','~r6,18,52,16;l6,18,58,34;l58,18,6,34'],
+['Tall Unit','ตู้สูง','r14,14,36,36;l14,14,50,50;l50,14,14,50'],
+['Kitchen Island','เกาะครัว','r8,14,48,28;r12,18,40,20;c16,52,4;c32,52,4;c48,52,4'],
+['L-Shape Cabinet','ตู้ตัว L','M6,10 H58 V28 H26 V54 H6 Z;M26,28 V10'],
+['TV Unit','ตู้วางทีวี','r6,36,52,16;r20,40,24,4'],
+['Shelf','ชั้นวางของ','r6,24,52,10;l19,24,19,34;l32,24,32,34;l45,24,45,34'],
+['Vanity','ตู้อ่างล้างหน้า','r6,18,52,26;e32,31,11,8;c32,31,1.5'],
+['Window Seat','ม้านั่งบิวท์อิน','r6,22,52,22;r10,26,44,14,3']]],
+['S','วัสดุปิดผิว','Surfaces',[
+['Floor Tile','กระเบื้องปูพื้น','r8,8,48,48;l32,8,32,56;l8,32,56,32'],
+['Wood Flooring','พื้นไม้','r8,8,48,48;l8,20,56,20;l8,32,56,32;l8,44,56,44;l24,8,24,20;l40,20,40,32;l20,32,20,44;l36,44,36,56'],
+['Parquet','ปาร์เก้','r8,8,48,48;l8,24,24,8;l8,40,40,8;l8,56,56,8;l24,56,56,24;l40,56,56,40'],
+['Carpet','พรมปูพื้น','r8,8,48,48;~r14,14,36,36;c20,20,1.5;c44,20,1.5;c20,44,1.5;c44,44,1.5'],
+['Stone / Marble','หิน / หินอ่อน','r8,8,48,48;M8,22 Q24,26 30,38 T56,44;M26,8 Q30,22 44,26'],
+['Terrazzo','เทอราซโซ','r8,8,48,48;M16,18 L22,16 L24,22 Z;M38,14 L44,18 L38,22 Z;M28,32 L34,30 L34,36 Z;M46,38 L52,40 L48,46 Z;M16,44 L22,42 L22,50 Z'],
+['Concrete','คอนกรีต','r8,8,48,48;c20,22,1.5;c40,18,1.5;c30,36,1.5;c46,42,1.5;c18,46,1.5;c34,50,1.5'],
+['Glass','กระจก','r8,8,48,48;l16,32,32,16;l16,46,46,16'],
+['Ceiling Grid','ฝ้าเพดาน','r8,8,48,48;~l8,24,56,24;~l8,40,56,40;~l24,8,24,56;~l40,8,40,56'],
+['Insulation','ฉนวน','r8,18,48,28;M8,32 Q14,20 20,32 T32,32 T44,32 T56,32'],
+['Wall Panel (Section)','ผนังบุแผ่น (ตัด)','r6,26,52,12;l10,38,18,26;l20,38,28,26;l30,38,38,26;l40,38,48,26;l50,38,56,26']]],
+['P','สี','Paint',[
+['Painted Wall','ผนังทาสี','r6,26,52,12;*r6,26,52,12'],
+['Accent Wall','ผนังเน้นสี','~r8,8,48,48;r8,8,10,48;*r8,8,10,48'],
+['Ceiling Paint','สีเพดาน','~r8,8,48,48;~l8,8,56,56;~l56,8,8,56'],
+['Wood Stain','สีย้อมไม้','r8,18,48,28;M8,28 Q20,22 32,28 T56,28;M8,37 Q20,31 32,37 T56,37'],
+['Texture Paint','สีเท็กซ์เจอร์','r6,26,52,12;c14,32,1.5;c24,30,1.5;c34,34,1.5;c44,30,1.5;c52,34,1.5'],
+['Baseboard','บัวพื้น','r6,22,52,16;r4,38,56,6']]],
+['PL','สุขภัณฑ์และประปา','Plumbing',[
+['Toilet','โถสุขภัณฑ์','r20,8,24,12,2;e32,38,12,16;e32,38,7,10'],
+['Wash Basin','อ่างล้างหน้า','r8,14,48,36,4;e32,32,16,10;c32,32,1.5;c32,19,2'],
+['Double Sink','อ่างคู่','r4,16,56,32,3;e18,32,10,8;e46,32,10,8'],
+['Kitchen Sink','อ่างล้างจาน','r6,16,52,32;r10,20,20,24,3;r34,20,20,24,3;c20,32,1.5;c44,32,1.5'],
+['Bathtub','อ่างอาบน้ำ','r6,16,52,32,10;r12,22,40,20,8;c18,32,2'],
+['Shower','ห้องอาบน้ำ','r10,10,44,44;~l10,10,54,54;c32,32,4'],
+['Floor Drain','ท่อระบายน้ำพื้น','r12,12,40,40;c32,32,12;l26,32,38,32;l32,26,32,38'],
+['Bidet','บิเด้','r26,8,12,8;e32,36,14,18;c32,36,1.5'],
+['Urinal','โถปัสสาวะชาย','r18,12,28,14,3;e32,36,9,12'],
+['Water Heater','เครื่องทำน้ำอุ่น','c32,32,18;c32,32,6']]],
+['H','ฮาร์ดแวร์ (ประตู-หน้าต่าง)','Hardware',[
+['Single Door','ประตูบานเปิดเดี่ยว','l4,48,16,48;l48,48,60,48;l16,48,16,16;~M48,48 A32,32 0 0 0 16,16'],
+['Double Door','ประตูบานคู่','l2,48,12,48;l52,48,62,48;l12,48,12,28;l52,48,52,28;~M32,48 A20,20 0 0 0 12,28;~M32,48 A20,20 0 0 1 52,28'],
+['Sliding Door','ประตูบานเลื่อน','l4,32,12,32;l52,32,60,32;r12,28,24,4;r28,34,24,4'],
+['Pocket Door','ประตูบานซ่อน','r4,24,56,16;r12,30,24,4;~r36,30,22,4'],
+['Bi-fold Door','ประตูบานพับ','l4,48,14,48;l50,48,60,48;M14,48 L22,34 L32,48 L42,34 L50,48'],
+['Fixed Window','หน้าต่างบานตาย','r4,26,56,12;l4,32,60,32']]],
+['EQ','เครื่องใช้และอุปกรณ์','Equipment',[
+['TV','โทรทัศน์','r12,28,40,6;l32,34,32,40'],
+['Air Conditioner','เครื่องปรับอากาศ','r6,18,52,12,3;~M14,32 Q32,54 50,32'],
+['Refrigerator','ตู้เย็น','r14,10,36,44,3;l14,18,50,18;l20,26,20,34'],
+['Dishwasher','เครื่องล้างจาน','~r10,14,44,38;c32,33,8'],
+['Cooktop','เตาปรุงอาหาร','r8,8,48,48,3;c22,22,7;c42,22,7;c22,42,7;c42,42,7'],
+['Washing Machine','เครื่องซักผ้า','r10,10,44,44,4;c32,34,12;c32,34,7;c18,17,2'],
+['Microwave','ไมโครเวฟ','r12,20,40,26,2;r16,24,22,18;c46,33,2'],
+['Range Hood','เครื่องดูดควัน','~r10,12,44,40;c32,32,10'],
+['Speaker','ลำโพง','r20,16,24,32,3;c32,26,5;c32,40,7'],
+['Projector','โปรเจคเตอร์ (เพดาน)','~r14,22,36,20,3;c32,32,6'],
+['Power Socket','ปลั๊กไฟ','c32,32,12;M20,32 H44;l32,20,32,44']]],
+['CT','เคาน์เตอร์ท็อป','Countertop',[
+['Straight Top','ท็อปตรง','r6,20,52,16;l6,32,58,32'],
+['L-Shape Top','ท็อปรูปตัว L','M8,10 H56 V30 H30 V54 H8 Z'],
+['U-Shape Top','ท็อปรูปตัว U','M6,8 H58 V56 H44 V22 H20 V56 H6 Z'],
+['Island Top','ท็อปเกาะ','r6,16,52,32;l6,40,58,40'],
+['Curved Bar Top','ท็อปบาร์โค้ง','M6,44 V20 Q6,12 14,12 H50 Q58,12 58,20 V44 Z'],
+['Sink Cutout','เจาะอ่างล้างจาน','r6,16,52,32;e32,32,14,8;c32,32,1.5'],
+['Cooktop Cutout','เจาะเตา','r6,16,52,32;r20,22,24,20;c27,29,3;c37,29,3;c27,37,3;c37,37,3'],
+['Backsplash','แบ็คสแปลช','r6,16,52,5;*r6,16,52,5;r6,21,52,26'],
+['Drainer Grooves','ร่องระบายน้ำ','r8,16,48,32;l16,22,16,42;l24,22,24,42;l32,22,32,42;l40,22,40,42']]],
+['D','ของตกแต่ง','Decor',[
+['Potted Plant','กระถางต้นไม้','c32,32,5;e32,16,5,10;e48,32,10,5;e32,48,5,10;e16,32,10,5'],
+['Tree','ต้นไม้ใหญ่','c32,18,10;c46,28,10;c42,46,10;c22,46,10;c18,28,10;c32,32,6'],
+['Shrub','ไม้พุ่ม','c24,32,12;c42,28,10;c38,44,9'],
+['Planter Box','กระบะต้นไม้','r8,22,48,20;c20,32,5;c32,32,5;c44,32,5'],
+['Rug','พรมตกแต่ง','r6,14,52,36,3;r12,20,40,24'],
+['Round Rug','พรมกลม','c32,32,22;c32,32,15'],
+['Curtain','ผ้าม่าน','l4,22,60,22;M6,36 Q11,26 16,36 T26,36 T36,36 T46,36 T56,36'],
+['Mirror / Wall Art','กระจก / ภาพติดผนัง','l6,50,58,50;r12,44,40,5'],
+['Cushion','หมอนอิง','M12,16 Q32,22 52,16 Q46,32 52,48 Q32,42 12,48 Q18,32 12,16 Z'],
+['Vase','แจกัน','c32,32,14;c32,32,8']]],
+['SG','ป้าย','Signage',[
+['Wall Sign','ป้ายติดผนัง','l6,50,58,50;r10,44,44,6'],
+['Projecting Sign','ป้ายยื่นจากผนัง','l6,50,58,50;r30,24,4,26'],
+['Standee','ป้ายตั้งพื้น','r14,26,36,8;l22,34,22,42;l42,34,42,42'],
+['Totem','ป้ายเสา','r20,16,24,32,2;r26,22,12,20'],
+['Lightbox','ป้ายไฟกล่อง','l6,50,58,50;*r10,44,44,6;r10,44,44,6;~r6,38,52,18'],
+['Floor Direction','ลูกศรบอกทางพื้น','M10,32 H50 M40,22 L50,32 L40,42'],
+['Exit Sign (Ceiling)','ป้ายทางออก (เพดาน)','~r10,22,44,20;M18,32 H44 M38,28 L44,32 L38,36']]],
+['G','กราฟิก','Graphics',[
+['Wall Mural','ภาพกราฟิกผนัง','l6,50,58,50;r8,44,48,6;*r8,44,48,6;~r8,36,48,14'],
+['Window Film','ฟิล์มกระจก','r4,26,56,12;l4,32,60,32;l12,38,18,26;l24,38,30,26;l36,38,42,26;l48,38,54,26'],
+['Floor Graphic','กราฟิกพื้น','r8,16,48,32;c32,32,12'],
+['Floor Logo','โลโก้พื้น','c32,32,22;M24,40 V24 L32,34 L40,24 V40'],
+['Vinyl Wrap','ไวนิลหุ้มผนัง','r6,26,52,12;~r4,22,56,20'],
+['Hanging Banner','แบนเนอร์แขวน','~r10,28,44,8;l18,22,18,28;l46,22,46,28'],
+['Floor Pattern','ลวดลายพื้น','r8,8,48,48;c20,20,8;c44,20,8;c20,44,8;c44,44,8;c32,32,8']]]
+    ];
+    const cats = D.map(([code, th, en, its]) => ({
+      code, th, en, count: its.length,
+      icon: this.svg(its[0][2], 2),
+      items: its.map(([e, t, sh], i) => ({ code: code + '-' + String(i + 1).padStart(2, '0'), en: e, th: t, svg: this.svg(sh, 2) }))
+    }));
+    const rules = [
+      ['เส้นทึบ','Solid line','วัตถุที่มองเห็นในแบบ ความหนาเส้น 2 หน่วย บนกริด 64','r8,16,48,32,4'],
+      ['เส้นประ','Dashed line','วัตถุเหนือระยะตัด / ซ่อนอยู่ เช่น ตู้แขวน, ฝ้า','~r8,16,48,32,4'],
+      ['แรเงาบาง','Light fill','พื้นผิวเด่น / ส่วนเน้น ใช้ความทึบ 18%','*r8,16,48,32,4'],
+      ['รหัสสัญลักษณ์','Symbol code','ตัวย่อหมวด + เลขลำดับ เช่น F-01, PL-05','l12,22,52,22;l12,32,40,32;l12,42,46,42']
+    ].map(([th, en, note, sh]) => ({ th: th + ' · ' + en, note, svg: this.svg(sh, 2) }));
+    return { cats, rules };
+  }
+}
+</script>
+</body>
+</html>

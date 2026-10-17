@@ -3,6 +3,7 @@ import type { FastifyRequest } from 'fastify';
 import { db } from './db';
 import { SYMBOLS, isMarkSize } from '../shared/symbols';
 import { isUnit } from '../shared/categories';
+import { isGlyph } from '../shared/glyphs';
 import { isStatus } from '../shared/brand';
 
 export type Body = Record<string, unknown>;
@@ -46,6 +47,7 @@ export const FIXTURE_RULES: Record<string, Rule> = {
   cat: catRule,
   model: str, name: str, size: str, room: str, finish: str, socket: str, ip: str, supplier: str, note: str,
   qty_manual: (v) => { const n = num(v); if (n != null && n < 0) throw bad('จำนวนต้องไม่ติดลบ'); return n == null ? null : Math.round(n * 100) / 100; },
+  glyph: (v) => { const s = str(v); if (!s) return null; if (!isGlyph(s)) throw bad('ไม่พบสัญลักษณ์นี้ในคู่มือ'); return s; },
   mark_size: (v) => { if (!isMarkSize(str(v))) throw bad('ขนาดสัญลักษณ์ต้องเป็น S, M หรือ L'); return str(v); },
   status: (v) => { if (!isStatus(str(v))) throw bad('สถานะไม่ถูกต้อง'); return str(v); },
   bulbs: num, watt_per_lamp: num, watt_total: num, kelvin: (v) => { const n = num(v); return n == null ? null : Math.round(n); },

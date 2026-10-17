@@ -1,7 +1,8 @@
 // Shared data types: used by the server (SQLite rows / JSON API), the web app and the PDF exporter.
 
 // marker (square), circle, triangle: item pins for every category; the lighting symbols come from Light Theory
-export type PointSymbol = 'marker' | 'circle' | 'triangle' | 'downlight' | 'wall' | 'spot' | 'pendant' | 'linear'; // linear: T5 batten etc., a fixed-length line counted per piece
+// glyph: a floor-plan symbol from the FF&E Symbol Guideline (shared/glyphs.ts), chosen per item in `glyph`
+export type PointSymbol = 'glyph' | 'marker' | 'circle' | 'triangle' | 'downlight' | 'wall' | 'spot' | 'pendant' | 'linear'; // linear: T5 batten etc., a fixed-length line counted per piece
 export type LineSymbol = 'track' | 'strip';
 export type SymbolKind = PointSymbol | LineSymbol;
 export type ColorKey = 'red' | 'blue' | 'green';
@@ -79,6 +80,7 @@ export interface Fixture {
   qty_manual: number | null; // typed quantity; overrides the plan count when set (always used for manual categories)
   status: Status;
   mark_size: MarkSize; // pin size on the plan (S / M / L)
+  glyph: string | null; // guideline symbol code (F-01 …) drawn when symbol = 'glyph'
   model: string;
   name: string;
   finish: string;
@@ -127,6 +129,7 @@ export interface LibraryItem {
   length_m: number | null;
   cat: string; // category prefix
   size: string;
+  glyph: string | null;
   category: string; // sub-group, free text for grouping / search, e.g. "ดาวน์ไลท์", "โซฟา"
   created_by: number | null;
   created_at: string;

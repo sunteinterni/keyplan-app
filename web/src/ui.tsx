@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { STATUS_STYLE, type Status } from '../../shared/brand';
 import { ICON_PATHS, MARK_SHAPES, WORDMARK_PATH } from '../../shared/brand-assets';
+import { glyphParts, glyphsFor } from '../../shared/glyphs';
 import { COLORS, DEFAULT_LINEAR_M, LINEAR_LENGTHS, isLineSymbol, lineStyle, pointSymbol, type Prim } from '../../shared/symbols';
 import type { ColorKey, Fixture, SymbolKind } from '../../shared/types';
 
@@ -74,13 +75,42 @@ export function Prims({ prims, color, u }: { prims: Prim[]; color: string; u: nu
         const sw = u * (p.sw ?? 1);
         if (p.t === 'circle') return <circle key={i} cx={p.cx} cy={p.cy} r={p.r} fill={p.fill ? color : 'none'} stroke={color} strokeWidth={sw} />;
         if (p.t === 'line') return <line key={i} x1={p.x1} y1={p.y1} x2={p.x2} y2={p.y2} stroke={color} strokeWidth={sw} strokeLinecap="round" />;
+        if (p.t === 'path') return <path key={i} d={p.d} fill={p.tint ? color : 'none'} fillOpacity={p.tint ? 0.18 : undefined} stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={p.dash ? `${sw * 2} ${sw * 1.5}` : undefined} />;
         return <polygon key={i} points={p.pts.map((q) => q.join(',')).join(' ')} fill={p.fill ? color : 'none'} stroke={color} strokeWidth={sw} strokeLinejoin="round" />;
       })}
     </>
   );
 }
 
-export function SymbolIcon({ kind, color, size = 26 }: { kind: SymbolKind; color: ColorKey; size?: number }) {
+/** A guideline floor-plan symbol on its own (64 × 64 grid), in Charcoal or a plan colour. */
+export function GlyphIcon({ code, size = 40, color = 'currentColor' }: { code: string; size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden>
+      {glyphParts(code, 32, 32, 60).map((p, i) => (
+        <path key={i} d={p.d} fill={p.tint ? color : 'none'} fillOpacity={p.tint ? 0.18 : undefined} stroke={color} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={p.dash ? '4 3' : undefined} />
+      ))}
+    </svg>
+  );
+}
+
+/** Symbols of a category from the FF&E Symbol Guideline; the chosen one is highlighted. Nothing for categories without symbols. */
+export function GlyphPicker({ cat, value, onPick, compact }: { cat: string; value: string | null; onPick: (code: string) => void; compact?: boolean }) {
+  const list = glyphsFor(cat);
+  if (!list.length) return null;
+  return (
+    <div className={`glyphgrid ${compact ? 'compact' : ''}`} role="group" aria-label="สัญลักษณ์บนแบบตามคู่มือ">
+      {list.map((g) => (
+        <button key={g.code} type="button" className={`glyphbtn ${value === g.code ? 'on' : ''}`} title={`${g.code} · ${g.th} · ${g.en}`} aria-label={`${g.th} (${g.en})`} onClick={() => onPick(g.code)}>
+          <GlyphIcon code={g.code} size={compact ? 30 : 44} />
+          {!compact && <span className="gname">{g.th}</span>}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function SymbolIcon({ kind, color, size = 26, glyph }: { kind: SymbolKind; color: ColorKey; size?: number; glyph?: string | null }) {
+  if (kind === 'glyph' && glyph) return <GlyphIcon code={glyph} size={size} color={COLORS[color]} />;
   const c = COLORS[color];
   if (isLineSymbol(kind)) {
     const st = lineStyle(kind, 4);
@@ -104,7 +134,7 @@ export function SymbolIcon({ kind, color, size = 26 }: { kind: SymbolKind; color
 export const FixtureChip = ({ f }: { f: Fixture }) => (
   // the icon carries the plan colour; the code is Terracotta Deep text (green on white is < 4.5:1)
   <span className="chip">
-    <SymbolIcon kind={f.symbol} color={f.color} size={20} />
+    <SymbolIcon kind={f.symbol} glyph={f.glyph} color={f.color} size={20} />
     <b className="codetag">{f.code}</b>
   </span>
 );
