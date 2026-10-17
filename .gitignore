@@ -12,3 +12,4 @@ web/dist
 # Claude Design export: working screenshots stay local
 reference/symbol-guideline/uploads/
 reference/symbol-guideline/.thumbnail
+reference/*.zip
