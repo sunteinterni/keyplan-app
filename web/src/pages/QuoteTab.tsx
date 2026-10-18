@@ -1,5 +1,5 @@
 import { api } from '../api';
-import { boq, isLighting, issues, lampText, quantities } from '../../../shared/calc';
+import { boq, isLighting, issues, lampText, lightExtra, lightExtraText, quantities } from '../../../shared/calc';
 import { STATUSES, STATUS_STYLE } from '../../../shared/brand';
 import { unitTh } from '../../../shared/categories';
 import { CatIcon, Field, FixtureChip, StatusChip, Txt, money, qty } from '../ui';
@@ -65,7 +65,7 @@ export function QuoteTab({ bundle, reload, toast }: TabProps) {
                   <tr key={f.id}>
                     <td><FixtureChip f={f} /></td>
                     <td>{f.name || f.model}<div className="muted small">{f.name ? f.model : ''}</div></td>
-                    <td className="small">{(isLighting(f) ? [lampText(f), f.kelvin ? `${f.kelvin}K` : ''] : [f.size, f.finish]).filter(Boolean).join(' · ')}</td>
+                    <td className="small">{(isLighting(f) ? [lampText(f), f.kelvin ? `${f.kelvin}K` : '', lightExtraText(f)] : [f.size, f.finish]).filter(Boolean).join(' · ')}</td>
                     <td><Txt className="w100" value={f.room} placeholder="ห้อง" onCommit={fx(f.id, 'room')} /></td>
                     <td className="right">
                       {row.qty.manual
@@ -74,7 +74,10 @@ export function QuoteTab({ bundle, reload, toast }: TabProps) {
                       {row.qty.uncalibrated > 0 && <span className="warn" title="มีเส้นบนชั้นที่ยังไม่ตั้งสเกล"> ⚠</span>}
                     </td>
                     <td>{unitTh(f.unit)}</td>
-                    <td className="right"><Txt className="w100 num" type="number" value={f.price} placeholder="รอราคา" onCommit={fx(f.id, 'price')} /></td>
+                    <td className="right">
+                      <Txt className="w100 num" type="number" value={f.price} placeholder="รอราคา" onCommit={fx(f.id, 'price')} />
+                      {lightExtra(f) > 0 && <div className="muted small" title="ราคาโคม + หลอด/Driver">+ {money(lightExtra(f))} = {row.price != null ? money(row.price) : 'รอราคา'}</div>}
+                    </td>
                     <td className="right">{row.price != null ? money(row.amount) : <span className="muted">รอราคา</span>}</td>
                     <td>
                       <select className="statussel" aria-label={`สถานะ ${f.code}`} value={f.status} onChange={(e) => fx(f.id, 'status')(e.target.value)} style={{ background: STATUS_STYLE[f.status]?.bg, color: STATUS_STYLE[f.status]?.fg, borderColor: STATUS_STYLE[f.status]?.fg }}>

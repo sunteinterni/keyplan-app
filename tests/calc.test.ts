@@ -5,7 +5,7 @@ import { pointsAlong, wiringPath, polylineLength } from '../shared/symbols';
 import type { Bundle, Fixture } from '../shared/types';
 
 const fx = (o: Partial<Fixture> & { id: number; code: string }): Fixture => ({
-  project_id: 1, cat: 'L', room: '', size: '', qty_manual: null, status: 'draft', mark_size: 'M', glyph: null, model: 'M', name: '', finish: '', socket: '', bulbs: null, watt_per_lamp: null, watt_total: null, kelvin: 3000, ip: '',
+  project_id: 1, cat: 'L', room: '', size: '', qty_manual: null, status: 'draft', mark_size: 'M', glyph: null, light_type: 'builtin', lamp_type: '', lamp_price: null, driver_type: '', driver_price: null, model: 'M', name: '', finish: '', socket: '', bulbs: null, watt_per_lamp: null, watt_total: null, kelvin: 3000, ip: '',
   symbol: 'downlight', color: 'red', unit: 'ea', price: null, supplier: '', note: '', photo_file: null, drawing_file: null, spec_qty: null, sort: 0, library_id: null, library_synced_at: null, length_m: null, ...o,
 });
 

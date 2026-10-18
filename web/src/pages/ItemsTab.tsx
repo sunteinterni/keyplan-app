@@ -7,6 +7,7 @@ import { LIGHTING, LIGHTING_PREFIXES, UNITS, categoryOf, isLengthUnit, sortCateg
 import { STATUSES, STATUS_STYLE } from '../../../shared/brand';
 import type { Category, ColorKey, Fixture, LibraryItem, SymbolKind } from '../../../shared/types';
 import { filterLibrary, libPrice, libSpec, useLibrary } from './Library';
+import { LightSpec } from './LightSpec';
 import { CatIcon, ConfirmButton, Empty, Field, FixtureChip, GlyphPicker, LengthPicker, StatusChip, SymbolIcon, Txt, money, qty } from '../ui';
 import { glyphsFor } from '../../../shared/glyphs';
 import type { TabProps } from './common';
@@ -221,22 +222,10 @@ function ItemForm({ f, cats, planQty, total, setField, setCategory, run, onDelet
         <FxField f={f} setField={setField} k="size" label="ขนาด (ก×ล×ส)" ph="เช่น 220×95×80 ซม." />
         <FxField f={f} setField={setField} k="finish" label="สี / ผิว / วัสดุ" />
         <FxField f={f} setField={setField} k="room" label="ห้อง / พื้นที่" ph="เช่น ห้องนั่งเล่น" />
-        <FxField f={f} setField={setField} k="price" label={`ราคา / ${unitTh(f.unit)} (ก่อน VAT)`} type="number" ph="เว้นว่าง = รอราคา" />
+        <FxField f={f} setField={setField} k="price" label={lighting && f.light_type !== 'builtin' ? `ราคาโคม / ${unitTh(f.unit)} (ไม่รวม${f.light_type === 'retrofit' ? 'หลอด' : ' Driver'})` : `ราคา / ${unitTh(f.unit)} (ก่อน VAT)`} type="number" ph="เว้นว่าง = รอราคา" />
         <FxField f={f} setField={setField} k="supplier" label="ซัพพลายเออร์ / ร้าน" />
         <FxField f={f} setField={setField} k="note" label="หมายเหตุ" wide />
-        {lighting && (
-          <>
-            <div className="section-label">สเปคไฟ (เฉพาะหมวด L)</div>
-            <FxField f={f} setField={setField} k="socket" label="ขั้วหลอด" ph="E27, G9, GU10…" />
-            <FxField f={f} setField={setField} k="bulbs" label="จำนวนหลอด" type="number" />
-            <FxField f={f} setField={setField} k="watt_per_lamp" label={isLengthUnit(f.unit) ? 'วัตต์ต่อเมตร (W/m)' : 'วัตต์ต่อหลอด (W)'} type="number" />
-            <FxField f={f} setField={setField} k="watt_total" label="วัตต์รวมต่อชุด (ถ้าไม่ใช้หลอด)" type="number" />
-            <FxField f={f} setField={setField} k="kelvin" label="อุณหภูมิสี (K)" type="number" />
-            <FxField f={f} setField={setField} k="ip" label="IP" />
-            <FxField f={f} setField={setField} k="spec_qty" label="จำนวนตามสเปคชีท (ไว้เทียบกับแปลน)" type="number" />
-            <div className="muted wide">กำลังไฟต่อชุด: <b className="mono">{qty(unitWatt(f))} W{isLengthUnit(f.unit) ? '/m' : ''}</b></div>
-          </>
-        )}
+        {lighting && <LightSpec v={f} set={setField} showSpecQty />}
       </div>
       <div className="card imgs">
         <ImgBox f={f} kind="photo" file={f.photo_file} label="รูปสินค้า" run={run} />

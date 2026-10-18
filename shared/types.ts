@@ -7,6 +7,8 @@ export type LineSymbol = 'track' | 'strip';
 export type SymbolKind = PointSymbol | LineSymbol;
 export type ColorKey = 'red' | 'blue' | 'green';
 export type MarkSize = 'S' | 'M' | 'L';
+/** How a light is bought: built-in LED (one price), retrofit (fixture + lamps) or with a separate driver. */
+export type LightType = 'builtin' | 'retrofit' | 'driver';
 export type Unit = 'ea' | 'set' | 'm' | 'm2' | 'ltr' | 'roll' | 'pnl' | 'pt' | 'ls'; // see shared/categories.ts UNITS
 import type { Status } from './brand';
 export type { Status };
@@ -81,6 +83,12 @@ export interface Fixture {
   status: Status;
   mark_size: MarkSize; // pin size on the plan (S / M / L)
   glyph: string | null; // guideline symbol code (F-01 …) drawn when symbol = 'glyph'
+  light_type: LightType; // lighting only: builtin / retrofit / driver
+  lamp_type: string; // retrofit: lamp model, e.g. "LED GU10 7W 3000K"
+  lamp_price: number | null; // retrofit: price per lamp
+  driver_type: string; // driver: e.g. "Constant voltage 24V 60W"
+  driver_price: number | null; // driver: price per unit of the item
+
   model: string;
   name: string;
   finish: string;
@@ -130,6 +138,12 @@ export interface LibraryItem {
   cat: string; // category prefix
   size: string;
   glyph: string | null;
+  light_type: LightType; // lighting only: builtin / retrofit / driver
+  lamp_type: string; // retrofit: lamp model, e.g. "LED GU10 7W 3000K"
+  lamp_price: number | null; // retrofit: price per lamp
+  driver_type: string; // driver: e.g. "Constant voltage 24V 60W"
+  driver_price: number | null; // driver: price per unit of the item
+
   category: string; // sub-group, free text for grouping / search, e.g. "ดาวน์ไลท์", "โซฟา"
   created_by: number | null;
   created_at: string;

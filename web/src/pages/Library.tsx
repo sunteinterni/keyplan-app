@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, fileUrl, upload, useCategories } from '../api';
-import { lampText } from '../../../shared/calc';
+import { lampText, lightExtraText, unitPrice } from '../../../shared/calc';
 import { searchText } from '../../../shared/library';
 import { COLORS, COLOR_LABEL, symbolsFor } from '../../../shared/symbols';
 import { LIGHTING, UNITS, categoryOf, isLengthUnit, sortCategories, unitTh } from '../../../shared/categories';
 import type { Category, ColorKey, Fixture, LibraryItem, User } from '../../../shared/types';
+import { LightSpec } from './LightSpec';
 import { CatIcon, ConfirmButton, Empty, Field, GlyphPicker, LengthPicker, SymbolIcon, Txt, money } from '../ui';
 
 /** Loads the central library; `reload()` refetches. Shared by this page and the items tab. */
@@ -20,10 +21,10 @@ export const filterLibrary = (items: LibraryItem[], q: string) => {
   return items.filter((i) => words.every((w) => searchText(i).includes(w)));
 };
 
-/** One line of spec text: lighting "GU10 ×1 · 7W · 3000K", other categories "size · finish". */
+/** One line of spec text: lighting "GU10 ×1 · 7W · 3000K · หลอด …", other categories "size · finish". */
 export const libSpec = (i: LibraryItem) =>
-  (i.cat === LIGHTING ? [lampText(i as unknown as Fixture), i.kelvin ? `${i.kelvin}K` : '', i.ip] : [i.size, i.finish]).filter(Boolean).join(' · ');
-export const libPrice = (i: LibraryItem) => (i.price != null ? `${money(i.price)} / ${unitTh(i.unit)}` : 'รอราคา');
+  (i.cat === LIGHTING ? [lampText(i as unknown as Fixture), i.kelvin ? `${i.kelvin}K` : '', i.ip, lightExtraText(i)] : [i.size, i.finish]).filter(Boolean).join(' · ');
+export const libPrice = (i: LibraryItem) => { const p = unitPrice(i); return p != null ? `${money(p)} / ${unitTh(i.unit)}` : 'รอราคา'; };
 
 export function Library({ me, toast }: { me: User; toast: (m: string) => void }) {
   const { items, reload } = useLibrary();
@@ -170,17 +171,7 @@ function LibraryForm({ it, cats, me, run, onDeleted }: { it: LibraryItem; cats: 
         {F({ k: 'price', label: `ราคา / ${unitTh(it.unit)} (ก่อน VAT)`, type: 'number', ph: 'เว้นว่าง = รอราคา' })}
         {F({ k: 'supplier', label: 'ซัพพลายเออร์ / ร้าน' })}
         {F({ k: 'note', label: 'หมายเหตุ', wide: true })}
-        {lighting && (
-          <>
-            <div className="section-label">สเปคไฟ (เฉพาะหมวด L)</div>
-            {F({ k: 'socket', label: 'ขั้วหลอด', ph: 'E27, G9, GU10…' })}
-            {F({ k: 'bulbs', label: 'จำนวนหลอด', type: 'number' })}
-            {F({ k: 'watt_per_lamp', label: isLengthUnit(it.unit) ? 'วัตต์ต่อเมตร (W/m)' : 'วัตต์ต่อหลอด (W)', type: 'number' })}
-            {F({ k: 'watt_total', label: 'วัตต์รวมต่อชุด (ถ้าไม่ใช้หลอด)', type: 'number' })}
-            {F({ k: 'kelvin', label: 'อุณหภูมิสี (K)', type: 'number' })}
-            {F({ k: 'ip', label: 'IP' })}
-          </>
-        )}
+        {lighting && <LightSpec v={it} set={set} />}
         <div className="muted wide">สเปค: {libSpec(it) || '—'}</div>
       </div>
       <div className="card imgs">

@@ -3,7 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import PDFDocument from 'pdfkit';
-import { boq, byCode, isLighting, issues as _issues, lampText, lineLengthM, loadSchedule, quantities, unitWatt } from '../shared/calc';
+import { boq, byCode, isLighting, issues as _issues, lampText, lightExtraText, lineLengthM, loadSchedule, quantities, unitPrice, unitWatt } from '../shared/calc';
 import { BRAND, TYPE, WIRE_COLORS as WIRE, onColor } from '../shared/brand';
 import { ICON_PATHS, MARK_SHAPES, WORDMARK_PATH } from '../shared/brand-assets';
 import { categoryOf, sortCategories, unitTh } from '../shared/categories';
@@ -594,7 +594,7 @@ function card(c: Ctx, f: Fixture, x: number, y: number, cw: number, ch: number, 
   doc.rect(x, y + 24, cw, 1).fill(INK);
   // photo and drawing side by side
   const iy = y + 30;
-  const ih = 78;
+  const ih = 70;
   const iw = (cw - 24) / 2;
   for (const [j, file] of [f.photo_file, f.drawing_file].entries()) {
     const bx = x + 8 + j * (iw + 8);
@@ -608,29 +608,32 @@ function card(c: Ctx, f: Fixture, x: number, y: number, cw: number, ch: number, 
     txt(doc, clip(doc, f.name, cw - 16, { size: 9.5, w: 600 }), x + 8, ty, { size: 9.5, w: 600 });
     ty += 13;
   }
-  const kv: [string, string][] = [
-    ['รุ่น', f.model],
-    ['ขนาด', f.size],
-    ['ห้อง', f.room],
-  ];
+  // price right under the model, so it always fits on the card (the card drops rows that do not fit)
+  const kv: [string, string][] = [['รุ่น', f.model]];
+  if (c.prices) {
+    const p = unitPrice(f);
+    kv.push(['ราคา', p != null ? `${money(p)} บาท / ${unitTh(f.unit)}${p !== f.price ? (f.light_type === 'retrofit' ? ' (รวมหลอด)' : ' (รวม Driver)') : ''}` : 'รอราคา']);
+  }
+  kv.push(['ขนาด', f.size], ['ห้อง', f.room]);
   if (isLighting(f)) {
     kv.push(
-      ['ขั้ว / หลอด', [f.socket, f.bulbs ? `${f.bulbs} หลอด` : ''].filter(Boolean).join(' · ')],
+      // the type shows through its own line: lamps for retrofit, the driver for driver lights, nothing extra for built-in
+      [f.light_type === 'retrofit' ? 'หลอด (Retrofit)' : 'ขั้ว / หลอด', [f.socket, f.bulbs ? `${f.bulbs} หลอด` : '', f.light_type === 'retrofit' ? f.lamp_type : ''].filter(Boolean).join(' · ')],
+      ['Driver', f.light_type === 'driver' ? f.driver_type || 'แยก' : ''],
       ['กำลังไฟ', f.watt_per_lamp != null ? `${f.watt_per_lamp} W${f.unit === 'm' ? '/m' : ' / หลอด'}${unitWatt(f) && f.unit !== 'm' ? ` (รวม ${qtyText(unitWatt(f))} W)` : ''}` : f.watt_total != null ? `${f.watt_total} W` : ''],
       ['K / IP', [f.kelvin ? `${f.kelvin}K` : '', f.ip].filter(Boolean).join(' · ')],
     );
   }
   kv.push(['สี / ผิว', f.finish], ['ซัพพลายเออร์', f.supplier]);
-  if (c.prices) kv.push(['ราคา', f.price != null ? `${money(f.price)} บาท / ${unitTh(f.unit)}` : 'รอราคา']);
   if (f.note) kv.push(['หมายเหตุ', f.note]);
   const lw = 64;
   for (const [k, v] of kv) {
     if (!v) continue;
     const ls = wrap(doc, v, cw - lw - 14, { size: 8.5, w: 500 }).slice(0, 2);
-    if (ty + ls.length * 10.5 > y + ch - 4) break;
+    if (ty + ls.length * 10 > y + ch - 3) break;
     txt(doc, k, x + 8, ty, { size: 8, color: GREY });
-    ls.forEach((ln, idx) => txt(doc, ln, x + 8 + lw, ty + idx * 10.5, { size: 8.5, w: 500 }));
-    ty += ls.length * 10.5 + 2;
+    ls.forEach((ln, idx) => txt(doc, ln, x + 8 + lw, ty + idx * 10, { size: 8.5, w: 500 }));
+    ty += ls.length * 10 + 1.5;
   }
 }
 
@@ -732,7 +735,7 @@ function boqSheet(c: Ctx) {
         String(++n),
         f.code,
         [f.name || f.model, f.name && f.model ? f.model : ''].filter(Boolean).join(' · '),
-        (isLighting(f) ? [lampText(f), f.kelvin ? `${f.kelvin}K` : ''] : [f.size, f.finish]).filter(Boolean).join('  '),
+        (isLighting(f) ? [lampText(f), f.kelvin ? `${f.kelvin}K` : '', lightExtraText(f)] : [f.size, f.finish]).filter(Boolean).join('  '),
         f.room,
         qtyText(row.qty.total),
         unitTh(f.unit),

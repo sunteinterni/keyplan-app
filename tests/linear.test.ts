@@ -34,7 +34,7 @@ test('drawn length follows the floor scale (0.60 / 1.20 m), falls back without a
 
 test('linear fixtures are counted in pieces like other point symbols', () => {
   const fx: Fixture = {
-    id: 1, project_id: 1, code: 'T5-01', cat: 'L', room: '', size: '', qty_manual: null, status: 'draft', mark_size: 'M', glyph: null, model: '', name: 'T5', finish: '', socket: 'T5', bulbs: 1, watt_per_lamp: 28, watt_total: null, kelvin: 4000, ip: '',
+    id: 1, project_id: 1, code: 'T5-01', cat: 'L', room: '', size: '', qty_manual: null, status: 'draft', mark_size: 'M', glyph: null, light_type: 'builtin', lamp_type: '', lamp_price: null, driver_type: '', driver_price: null, model: '', name: 'T5', finish: '', socket: 'T5', bulbs: 1, watt_per_lamp: 28, watt_total: null, kelvin: 4000, ip: '',
     symbol: 'linear', color: 'blue', unit: 'ea', price: null, supplier: '', note: '', photo_file: null, drawing_file: null, spec_qty: null, sort: 0,
     library_id: null, library_synced_at: null, length_m: 1.2,
   };

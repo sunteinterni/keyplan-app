@@ -3,7 +3,7 @@
 import type Database from 'better-sqlite3';
 import { BUILTIN_CATEGORIES } from '../shared/categories';
 
-export const SCHEMA_VERSION = 10;
+export const SCHEMA_VERSION = 11;
 
 const q = (s: string) => `'${s.replace(/'/g, "''")}'`;
 
@@ -145,6 +145,17 @@ const migrations: Record<number, string> = {
   // floor-plan symbol from the FF&E Symbol Guideline (F-01 sofa …), drawn when symbol = 'glyph'
   10: `ALTER TABLE fixtures ADD COLUMN glyph TEXT;
       ALTER TABLE library ADD COLUMN glyph TEXT;`,
+  // lighting type: built-in LED (one price), retrofit lamp (lamp type + price per lamp) or driver (driver type + price)
+  11: `ALTER TABLE fixtures ADD COLUMN light_type TEXT NOT NULL DEFAULT 'builtin';
+      ALTER TABLE fixtures ADD COLUMN lamp_type TEXT NOT NULL DEFAULT '';
+      ALTER TABLE fixtures ADD COLUMN lamp_price REAL;
+      ALTER TABLE fixtures ADD COLUMN driver_type TEXT NOT NULL DEFAULT '';
+      ALTER TABLE fixtures ADD COLUMN driver_price REAL;
+      ALTER TABLE library ADD COLUMN light_type TEXT NOT NULL DEFAULT 'builtin';
+      ALTER TABLE library ADD COLUMN lamp_type TEXT NOT NULL DEFAULT '';
+      ALTER TABLE library ADD COLUMN lamp_price REAL;
+      ALTER TABLE library ADD COLUMN driver_type TEXT NOT NULL DEFAULT '';
+      ALTER TABLE library ADD COLUMN driver_price REAL;`,
 };
 
 /** Brings any database (new or older version) up to SCHEMA_VERSION (or an older target, for tests of the upgrade path). */

@@ -1,5 +1,5 @@
 import ExcelJS from 'exceljs';
-import { boq, isLighting, lampText, loadSchedule } from '../shared/calc';
+import { boq, isLighting, lampText, lightExtraText, loadSchedule } from '../shared/calc';
 import { unitTh } from '../shared/categories';
 import type { Bundle } from '../shared/types';
 
@@ -19,7 +19,7 @@ export async function buildXlsx(b: Bundle): Promise<Buffer> {
     gr.font = { bold: true };
     for (const row of g.rows) {
       const f = row.fixture;
-      const spec = (isLighting(f) ? [lampText(f), f.kelvin ? `${f.kelvin}K` : ''] : [f.size, f.finish]).filter(Boolean).join(' ');
+      const spec = (isLighting(f) ? [lampText(f), f.kelvin ? `${f.kelvin}K` : '', lightExtraText(f)] : [f.size, f.finish]).filter(Boolean).join(' ');
       ws.addRow([++n, f.code, f.name, f.model, spec, row.qty.total, unitTh(f.unit), row.price ?? 'รอราคา', row.price != null ? row.amount : null, f.supplier, f.room]);
     }
   }

@@ -4,6 +4,36 @@ import { LIGHTING, categoryOf, isLengthUnit, sortCategories } from './categories
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
+export const LIGHT_TYPES = [
+  { key: 'builtin', th: 'Built-in', en: 'Integrated LED', note: 'หลอด/LED ในตัว ราคาเดียวจบ' },
+  { key: 'retrofit', th: 'Retrofit', en: 'Replaceable lamp', note: 'โคม + หลอดแยก ราคาหลอดคูณจำนวนหลอดต่อชุด' },
+  { key: 'driver', th: 'Driver', en: 'With driver', note: 'โคม + Driver แยก ราคา Driver ต่อหน่วย' },
+] as const;
+
+/**
+ * Price per unit of an item as quoted: the fixture price, plus the lamps for a retrofit light (price × lamps per set)
+ * or the driver for a light with a separate driver. Null while the fixture price is missing ("รอราคา").
+ * Only lighting items have extras.
+ */
+export function unitPrice(f: Pick<Fixture, 'cat' | 'price' | 'light_type' | 'lamp_price' | 'driver_price' | 'bulbs'>): number | null {
+  if (f.price == null) return null;
+  return r2(f.price + lightExtra(f));
+}
+/** The lamp or driver part of the unit price (0 for built-in lights and other categories). */
+export function lightExtra(f: Pick<Fixture, 'cat' | 'light_type' | 'lamp_price' | 'driver_price' | 'bulbs'>): number {
+  if (f.cat !== 'L') return 0;
+  if (f.light_type === 'retrofit') return r2((f.lamp_price ?? 0) * (f.bulbs && f.bulbs > 0 ? f.bulbs : 1));
+  if (f.light_type === 'driver') return r2(f.driver_price ?? 0);
+  return 0;
+}
+/** Short text for spec columns: lamp or driver type and what was added to the price. */
+export function lightExtraText(f: Pick<Fixture, 'cat' | 'light_type' | 'lamp_type' | 'lamp_price' | 'driver_type' | 'driver_price' | 'bulbs'>): string {
+  if (f.cat !== 'L') return '';
+  if (f.light_type === 'retrofit') return ['หลอด', f.lamp_type, f.lamp_price != null ? `${f.bulbs && f.bulbs > 1 ? `${f.bulbs}×` : ''}${f.lamp_price.toLocaleString('en-US')}` : ''].filter(Boolean).join(' ');
+  if (f.light_type === 'driver') return ['Driver', f.driver_type, f.driver_price != null ? f.driver_price.toLocaleString('en-US') : ''].filter(Boolean).join(' ');
+  return '';
+}
+
 export function unitWatt(f: Fixture): number {
   if (f.unit === 'm') return f.watt_per_lamp ?? f.watt_total ?? 0; // W per metre
   if (f.watt_total != null) return f.watt_total;
@@ -111,7 +141,7 @@ export function boq(b: Bundle): Boq {
     .filter((f) => (q[f.id]?.total ?? 0) > 0)
     .map((f) => {
       const qty = q[f.id];
-      const price = f.price;
+      const price = unitPrice(f);
       return { fixture: f, category: categoryOf(cats, f.cat), qty, price, amount: price == null ? 0 : r2(price * qty.total) };
     });
   const groups: BoqGroup[] = [];
@@ -224,6 +254,8 @@ export function issues(b: Bundle): Issue[] {
     const e = q[f.id];
     if (!f.model && !f.name) out.push({ level: 'crit', code: f.code, text: 'ยังไม่มีชื่อหรือรุ่น' });
     if (f.price == null) out.push({ level: 'warn', code: f.code, text: 'รอราคา' });
+    if (isLighting(f) && f.light_type === 'retrofit' && f.lamp_price == null) out.push({ level: 'warn', code: f.code, text: 'ยังไม่มีราคาหลอด' });
+    if (isLighting(f) && f.light_type === 'driver' && f.driver_price == null) out.push({ level: 'warn', code: f.code, text: 'ยังไม่มีราคา Driver' });
     if (!e.manual && !isLengthUnit(f.unit) && f.spec_qty != null && f.spec_qty !== e.total)
       out.push({ level: 'crit', code: f.code, text: `สเปคชีทระบุ ×${f.spec_qty} แต่บนแปลนมี ${e.total}` });
     if (e.uncalibrated) out.push({ level: 'crit', code: f.code, text: `มีเส้น ${e.uncalibrated} เส้นบนชั้นที่ยังไม่ตั้งสเกล จึงยังไม่นับความยาว` });
